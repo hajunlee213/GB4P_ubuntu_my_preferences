@@ -1,0 +1,13 @@
+# 1. keyd 가상 키보드를 내장 키보드로 인식 -> DWT(타이핑 중 터치패드 잠금) 활성화
+[keyd Virtual Keyboard Integration]
+MatchName=keyd virtual keyboard
+AttrKeyboardIntegration=internal
+
+# 2. 갤럭시북 Zinitix 터치패드 손바닥 크기/압력 감지
+[Samsung Galaxy Book ZNT Touchpad]
+MatchUdevType=touchpad
+MatchBus=i2c
+MatchVendor=0x14E5
+MatchProduct=0xE760
+AttrPalmPressureThreshold=100
+AttrPalmSizeThreshold=20
