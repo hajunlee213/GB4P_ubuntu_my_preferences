@@ -30,6 +30,12 @@ chmod +x *.sh scripts/*.sh
 ```
 > 적용 후 시스템을 재부팅(`sudo reboot`)하면 **설정 → 디스플레이 → 주사율**에서 60Hz, 75Hz, 80Hz, 100Hz, 120Hz를 자유롭게 선택할 수 있습니다. (순정 복구: `sudo ./display_tuning.sh --restore`)
 
+### 4. 전원 연동 주사율 & sdr-native(sRGB) 복원 (`power_refresh_sdr.sh`)
+```bash
+./power_refresh_sdr.sh
+```
+> AC 연결 시 80Hz VRR, 배터리 사용 시 60Hz VRR로 자동 전환되며, 주사율 변경이나 절전 모드 해제 시 풀리는 OLED `sdr-native`(sRGB 클램핑) 설정을 항상 유지합니다. (원상 복구: `./power_refresh_sdr.sh --restore`)
+
 ---
 
 ## ⚡ power_consumption (전력 소모 & 발열 튜닝 상세)
@@ -129,6 +135,26 @@ chmod +x *.sh scripts/*.sh
 
 ---
 
+## 🔄 power_refresh_sdr (전원 연동 주사율 & sdr-native Governor 상세)
+
+충전기 연결(AC)과 배터리 사용(DC)에 따라 디스플레이 주사율을 지능적으로 전환하고, 주사율 변경이나 부팅/절전 복귀 시 풀려버리는 OLED 광색역 sRGB 클램핑(`sdr-native`)을 항상 자동으로 유지하는 백그라운드 서비스입니다.
+
+### 1. 전원 상태별 주사율 자동 동적 전환
+* **🔌 AC 연결 시**: **80Hz VRR** (부드러운 화면 체감과 저발열의 균형)
+* **🔋 DC(배터리) 사용 시**: **60Hz VRR** (OLED 패널 배터리 소모 최소화)
+* **물리적 AC 감지**: 삼성 배터리 수명 보호(80% 충전 제한)가 켜져 있어 '충전 중'이 아니더라도 `/sys/class/power_supply/ADP1/online` 등 물리적 전원 어댑터 연결을 직접 감지하여 정확하게 상태를 판별합니다.
+
+### 2. OLED 광색역 sRGB 클램핑 (`sdr-native`) 자동 주입
+* **문제점**: GNOME Wayland(Mutter) 환경에서는 주사율을 변경하거나 재부팅, 절전(Suspend) 후 복귀 시 `sdr-native` 설정이 풀려 패널 기본 P3 광색역으로 돌아가며 색이 과포화(Oversaturated)되는 버그가 있습니다.
+* **해결책**: Mutter DisplayConfig D-Bus API(`ApplyMonitorsConfig`)를 통해 주사율 전환 시 `"color-mode": 2 (sdr-native)`를 원자적(Atomic)으로 함께 주입하여 언제나 왜곡 없는 표준 sRGB 색역을 보장합니다.
+
+### 3. 무음 전환 및 무부하 (Zero-Overhead) 설계
+* **확인 팝업 없음**: `TEMPORARY` (1) 모드로 D-Bus를 호출하여 "Keep these display settings?" 팝업 다이얼로그 없이 백그라운드에서 무음으로 즉시 전환됩니다.
+* **이벤트 드리븐 (CPU 0%)**: 주기적 폴링 없이 UPower 및 logind D-Bus 신호(`PropertiesChanged`, `PrepareForSleep`)를 통해서만 반응하므로 유휴 전력 소모가 전혀 없습니다.
+* **systemd 사용자 서비스**: `power-refresh-sdr.service`가 그래픽 세션 로그인 시 자동 시작됩니다.
+
+---
+
 ## 📂 프로젝트 구조
 
 ```
@@ -140,6 +166,8 @@ GB4P_ubuntu_my_preferences/
 ├── power_consumption.sh_README.md  # 전력 소모 최적화 패치 상세 설명서
 ├── display_tuning.sh              # 디스플레이 다중 주사율(60~120Hz) 복원 스크립트
 ├── display_tuning.sh_README.md    # 디스플레이 주사율 패치 상세 설명서
+├── power_refresh_sdr.sh           # 전원 연동 주사율 & sdr-native 복원 스크립트
+├── power_refresh_sdr.sh_README.md # 전원 연동 주사율 & sdr-native 패치 상세 설명서
 ├── configs/
 │   ├── edid/
 │   │   └── gb4p_custom_edid.bin   # OLED 맞춤형 256B EDID 바이너리
@@ -157,7 +185,10 @@ GB4P_ubuntu_my_preferences/
 │   │   ├── power-options-startup.desktop # 부팅 시 전원 프로필 자동 적용
 │   │   └── disable-ht.desktop            # 부팅 시 CPU 토폴로지 적용
 │   ├── bin/
-│   │   └── disable-ht.sh             # CPU HT 및 E코어 클러스터0 차단 스크립트
+│   │   ├── disable-ht.sh             # CPU HT 및 E코어 클러스터0 차단 스크립트
+│   │   └── power-refresh-sdr-daemon.py # 전원 연동 주사율 & sdr-native 데몬
+│   ├── systemd-user/
+│   │   └── power-refresh-sdr.service # systemd 사용자 서비스 유닛 파일
 │   ├── power_options/                # 바탕화면 원클릭 전원 제어 도구 모음
 │   │   ├── 00_Full_Power.sh
 │   │   ├── 1_unlimited_turbo_off.sh
@@ -179,6 +210,8 @@ GB4P_ubuntu_my_preferences/
 │   ├── setup-display-edid.sh         # 디스플레이 EDID & 램디스크/GRUB 설정
 │   ├── restore-display-edid.sh       # 디스플레이 설정 순정 원복 스크립트
 │   ├── generate-edid.py              # EDID 타이밍 계산 및 바이너리 생성기
+│   ├── setup-power-refresh-sdr.sh    # 전원 연동 주사율 & sdr-native 복원
+│   ├── restore-power-refresh-sdr.sh  # 전원 연동 주사율 & sdr-native 원상 복구
 │   ├── setup-power-sysctl.sh         # SSD 절전 sysctl 복원
 │   ├── setup-power-options.sh        # 바탕화면 전원 도구 & CPU 제어 복원
 │   ├── setup-power-udev.sh           # AC/DC 전환 udev 룰 복원

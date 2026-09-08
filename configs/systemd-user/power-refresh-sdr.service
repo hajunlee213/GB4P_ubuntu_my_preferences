@@ -1,0 +1,13 @@
+[Unit]
+Description=Power Refresh Rate and SDR Governor Daemon
+After=graphical-session.target gnome-session.target org.gnome.Shell@wayland.service
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/power-refresh-sdr-daemon.py
+Restart=on-failure
+RestartSec=2s
+
+[Install]
+WantedBy=graphical-session.target default.target
