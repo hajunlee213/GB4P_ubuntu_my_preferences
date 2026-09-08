@@ -125,7 +125,7 @@ def main():
         title = args.title or f"OLED Custom (B:{args.black:.1f}% W:{args.white:.1f}%)"
         make_profile(src, os.path.join(out_dir, name), title, b, w)
     else:
-        # Default: Generate both Gentle and Medium profiles
+        # Default: Generate Gentle, Medium, and Pure Black profiles
         make_profile(
             src,
             os.path.join(out_dir, "oled_gentle_contrast.icc"),
@@ -138,6 +138,13 @@ def main():
             os.path.join(out_dir, "oled_medium_contrast.icc"),
             "OLED Eye Care - Medium Contrast",
             0.040,
+            0.850
+        )
+        make_profile(
+            src,
+            os.path.join(out_dir, "oled_pure_black.icc"),
+            "OLED Eye Care - Pure Black",
+            0.000,
             0.850
         )
 

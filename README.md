@@ -182,10 +182,14 @@ OLED 패널에서 다크모드 사용 시 발생하는 극단적인 명암비(�
 * **`Medium Contrast`**:
   * **블랙 리프트**: **`+4.0%`** (8비트 기준 `10/255`, 확실한 대비 완화 및 스미어링 방지)
   * **화이트 레벨**: **`85.0%`** (8비트 기준 `217/255`, 야간 장시간 코딩 및 문서 작업에 최적화)
+* **`Pure Black` (전력/번인 최우선)**:
+  * **블랙 레벨**: **`0.0%`** (8비트 기준 `0/255`, OLED 픽셀 완전 소등으로 다크모드 배터리 절약 & 번인 방지 극대화)
+  * **화이트 레벨**: **`85.0%`** (8비트 기준 `217/255`, 눈부심 완화)
 
 ### 3. CLI 제어 도구 (`oled-mode`)
-* `oled-mode gentle` : Gentle Contrast 즉시 적용
-* `oled-mode medium` : Medium Contrast 즉시 적용
+* `oled-mode gentle` : Gentle Contrast 즉시 적용 (블랙 +2.0%, 화이트 90%) [추천]
+* `oled-mode medium` : Medium Contrast 즉시 적용 (블랙 +4.0%, 화이트 85%)
+* `oled-mode pure`   : Pure Black 즉시 적용 (블랙 0.0%, 화이트 85% - 전력/번인 최우선)
 * `oled-mode custom <블랙%> <화이트%>` : 원하는 비율로 실시간 ICC 생성 및 적용 (예: `oled-mode custom 2.0 90`)
 * `oled-mode status` : 현재 활성 디스플레이 프로파일 확인
 * `oled-mode reset` : CTM 초기화 및 패널 순정 공장 출하 상태로 즉시 복원
@@ -247,7 +251,8 @@ GB4P_ubuntu_my_preferences/
 │   │   └── gb4p_custom_edid.bin   # OLED 맞춤형 256B EDID 바이너리
 │   ├── icc/
 │   │   ├── oled_gentle_contrast.icc # 블랙 +2.0%, 화이트 90.0% VCGT 프로파일
-│   │   └── oled_medium_contrast.icc # 블랙 +4.0%, 화이트 85.0% VCGT 프로파일
+│   │   ├── oled_medium_contrast.icc # 블랙 +4.0%, 화이트 85.0% VCGT 프로파일
+│   │   └── oled_pure_black.icc     # 블랙 0.0%,  화이트 85.0% VCGT 프로파일 (전력/번인 최우선)
 │   ├── dracut/
 │   │   ├── edid.conf              # Dracut 램디스크 펌웨어 패키징 설정
 │   │   └── gpu-drivers.conf       # Dracut i915/xe 램디스크 드라이버 설정

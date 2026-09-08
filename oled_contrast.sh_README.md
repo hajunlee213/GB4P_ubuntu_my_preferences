@@ -29,6 +29,7 @@
 | :--- | :--- | :--- |
 | **ICC 프로파일 (Gentle)** | `~/.local/share/icc/oled_gentle_contrast.icc` | 블랙 +2.0%, 화이트 90.0% 맞춤 프로파일 |
 | **ICC 프로파일 (Medium)** | `~/.local/share/icc/oled_medium_contrast.icc` | 블랙 +4.0%, 화이트 85.0% 맞춤 프로파일 |
+| **ICC 프로파일 (Pure Black)** | `~/.local/share/icc/oled_pure_black.icc` | 블랙 0.0%, 화이트 85.0% 맞춤 프로파일 (전력/번인 최우선) |
 | **커스텀 ICC 프로파일** | `~/.local/share/icc/oled_custom.icc` | `oled-mode custom` 실행 시 실시간 생성되는 프로파일 |
 | **CLI 제어 도구** | `~/.local/bin/oled-mode` | 모드 전환, 실시간 튜닝, 원복을 수행하는 실행 스크립트 |
 | **시스템 심볼릭 링크** | `/usr/local/bin/oled-mode` | 터미널 어디서나 `oled-mode`를 즉시 실행할 수 있는 링크 |
@@ -52,6 +53,7 @@ $$y = \text{black\_offset} + (\text{white\_max} - \text{black\_offset}) \times x
 | :--- | :---: | :---: | :---: | :--- |
 | **`Gentle Contrast`** *(기본값/추천)* | **`+2.0%`** | **`90.0%`** | `0` $\rightarrow$ `5` / `255` $\rightarrow$ `230` | **일상적인 다크모드 개발 및 웹서핑 권장**.<br>글자의 선명함을 온전히 유지하면서 찌르는 자극만 억제하고 스미어링 방지 |
 | **`Medium Contrast`** | **`+4.0%`** | **`85.0%`** | `0` $\rightarrow$ `10` / `255` $\rightarrow$ `217` | **야간 작업 및 확실한 스미어링 방지 권장**.<br>더 부드러운 다크모드 명암비와 확실한 블랙 리프트 제공 |
+| **`Pure Black`** | **`0.0%`** | **`85.0%`** | `0` $\rightarrow$ `0` / `255` $\rightarrow$ `217` | **전력 절약 및 번인 방지 최우선 권장**.<br>OLED 픽셀 완전 소등(0 cd/m²)으로 다크모드 배터리 절약 극대화 및 피크 눈부심 완화 |
 | **`Custom`** | 사용자 지정 | 사용자 지정 | 자유 튜닝 | `oled-mode custom <블랙%> <화이트%>` 로 즉시 미세조정 |
 | **`Reset (순정)`** | `0.0%` | `100.0%` | `0` $\rightarrow$ `0` / `255` $\rightarrow$ `255` | 팩토리 기본값 복구 (100% 네이티브 광색역 출고 상태) |
 
@@ -64,13 +66,16 @@ oled-mode gentle
 # 2. Medium 모드 적용 (블랙 +4.0%, 화이트 85%)
 oled-mode medium
 
-# 3. 실시간 커스텀 수치 생성 및 적용 (예: 블랙 1.8%, 화이트 92%)
+# 3. Pure Black 모드 적용 (블랙 0.0%, 화이트 85% - 전력/번인 최우선)
+oled-mode pure
+
+# 4. 실시간 커스텀 수치 생성 및 적용 (예: 블랙 1.8%, 화이트 92%)
 oled-mode custom 1.8 92
 
-# 4. 현재 적용 중인 컬러 프로파일 및 장치 확인
+# 5. 현재 적용 중인 컬러 프로파일 및 장치 확인
 oled-mode status
 
-# 5. 출고 순정 상태로 즉시 복원 (CTM 초기화 + 공장 EDID 프로파일 적용)
+# 6. 출고 순정 상태로 즉시 복원 (CTM 초기화 + 공장 EDID 프로파일 적용)
 oled-mode reset
 ```
 

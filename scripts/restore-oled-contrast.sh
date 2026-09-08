@@ -57,7 +57,7 @@ except Exception:
 
 [ -z "$DEV_ID" ] && DEV_ID="xrandr-Samsung Display Corp.-0x4188-0x00000000"
 
-for f in oled_gentle_contrast.icc oled_medium_contrast.icc oled_custom.icc; do
+for f in oled_gentle_contrast.icc oled_medium_contrast.icc oled_pure_black.icc oled_custom.icc; do
     if [ -f "${USER_ICC_DIR}/$f" ]; then
         PROF_ID="$(run_user_cmd colormgr find-profile-by-filename "${USER_ICC_DIR}/$f" 2>/dev/null | grep "Profile ID:" | awk '{print $3}' || true)"
         if [ -n "$PROF_ID" ]; then

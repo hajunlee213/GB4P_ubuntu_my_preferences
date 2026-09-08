@@ -57,7 +57,8 @@ mkdir -p "${USER_BIN_DIR}"
 echo "-> OLED 맞춤형 ICC 프로파일 복사..."
 cp -f "${PROJECT_ROOT}/configs/icc/oled_gentle_contrast.icc" "${USER_ICC_DIR}/"
 cp -f "${PROJECT_ROOT}/configs/icc/oled_medium_contrast.icc" "${USER_ICC_DIR}/"
-chmod 644 "${USER_ICC_DIR}/oled_gentle_contrast.icc" "${USER_ICC_DIR}/oled_medium_contrast.icc"
+cp -f "${PROJECT_ROOT}/configs/icc/oled_pure_black.icc" "${USER_ICC_DIR}/"
+chmod 644 "${USER_ICC_DIR}/oled_gentle_contrast.icc" "${USER_ICC_DIR}/oled_medium_contrast.icc" "${USER_ICC_DIR}/oled_pure_black.icc"
 
 # 4. oled-mode CLI 도구 설치
 echo "-> oled-mode CLI 도구 설치: ${USER_BIN_DIR}/oled-mode"
@@ -75,6 +76,7 @@ if [ "$EUID" -eq 0 ]; then
     chown "${TARGET_USER}:${TARGET_USER}" \
         "${USER_ICC_DIR}/oled_gentle_contrast.icc" \
         "${USER_ICC_DIR}/oled_medium_contrast.icc" \
+        "${USER_ICC_DIR}/oled_pure_black.icc" \
         "${USER_BIN_DIR}/oled-mode"
 fi
 
@@ -82,6 +84,7 @@ fi
 echo "-> colord 컬러 매니저에 ICC 프로파일 등록..."
 run_user_cmd colormgr import-profile "${USER_ICC_DIR}/oled_gentle_contrast.icc" 2>/dev/null || true
 run_user_cmd colormgr import-profile "${USER_ICC_DIR}/oled_medium_contrast.icc" 2>/dev/null || true
+run_user_cmd colormgr import-profile "${USER_ICC_DIR}/oled_pure_black.icc" 2>/dev/null || true
 
 # 디스플레이 장치 탐색
 DEV_ID="$(run_user_cmd python3 -c '
@@ -108,12 +111,16 @@ echo "-> 타겟 디스플레이 장치: ${DEV_ID}"
 # 프로파일 장치 연결
 ID_GENTLE="$(run_user_cmd colormgr find-profile-by-filename "${USER_ICC_DIR}/oled_gentle_contrast.icc" 2>/dev/null | grep "Profile ID:" | awk '{print $3}' || true)"
 ID_MEDIUM="$(run_user_cmd colormgr find-profile-by-filename "${USER_ICC_DIR}/oled_medium_contrast.icc" 2>/dev/null | grep "Profile ID:" | awk '{print $3}' || true)"
+ID_PURE="$(run_user_cmd colormgr find-profile-by-filename "${USER_ICC_DIR}/oled_pure_black.icc" 2>/dev/null | grep "Profile ID:" | awk '{print $3}' || true)"
 
 if [ -n "$ID_GENTLE" ]; then
     run_user_cmd colormgr device-add-profile "$DEV_ID" "$ID_GENTLE" 2>/dev/null || true
 fi
 if [ -n "$ID_MEDIUM" ]; then
     run_user_cmd colormgr device-add-profile "$DEV_ID" "$ID_MEDIUM" 2>/dev/null || true
+fi
+if [ -n "$ID_PURE" ]; then
+    run_user_cmd colormgr device-add-profile "$DEV_ID" "$ID_PURE" 2>/dev/null || true
 fi
 
 # 6. 기본 프로파일(Gentle Contrast) 즉시 적용
