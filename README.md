@@ -1,6 +1,6 @@
 # Galaxy Book 4 Pro (GB4P) Ubuntu 개인 설정 원클릭 복원
 
-갤럭시 북4 프로(GB4P, NT960XGK / Meteor Lake) 및 유사 기기에서 우분투를 재설치했을 때, **터치패드/키보드 편의 설정**과 **전력 소모 최적화(power_consumption)** 설정을 명령어 한 줄로 복원하기 위한 프로젝트입니다.
+갤럭시 북4 프로(GB4P, NT960XGK / Meteor Lake) 및 유사 기기에서 우분투를 재설치했을 때, **터치패드/키보드 편의 설정**, **전력 소모 최적화(power_consumption)** 및 **OLED 다중 주사율(60Hz, 80Hz 등) 디스플레이 패치** 설정을 명령어 한 줄로 복원하기 위한 프로젝트입니다.
 
 ---
 
@@ -23,6 +23,12 @@ chmod +x *.sh scripts/*.sh
 ```bash
 ./touchpad_keyboard.sh
 ```
+
+### 3. 디스플레이 다중 주사율(60Hz, 80Hz 등) 복원 (`display_tuning.sh`)
+```bash
+./display_tuning.sh
+```
+> 적용 후 시스템을 재부팅(`sudo reboot`)하면 **설정 → 디스플레이 → 주사율**에서 60Hz, 75Hz, 80Hz, 100Hz, 120Hz를 자유롭게 선택할 수 있습니다. (순정 복구: `sudo ./display_tuning.sh --restore`)
 
 ---
 
@@ -102,6 +108,27 @@ chmod +x *.sh scripts/*.sh
 
 ---
 
+## 🖥️ display_tuning (디스플레이 다중 주사율 & OLED 패널 최적화 상세)
+
+갤럭시 북4 프로 16인치(Samsung ATNA60CL07-0 2880×1800 AMOLED) 패널의 출고 EDID ROM에는 120Hz 상세 타이밍만 등록되어 있어 우분투에서 60Hz 등 배터리 절약용 주사율을 선택할 수 없습니다. 또한 일반 LCD처럼 픽셀 클럭을 낮추면 OLED TCON 링크가 끊겨 화면이 꺼지는(블랙아웃) 문제가 있습니다.
+
+### 1. 고정 픽셀 클럭(655.13 MHz) & V-Blank 확장
+* **원리**: 윈도우/FreeSync VRR 드라이버 방식과 동일하게 도트클럭(655.13 MHz)과 수평 동기 주파수(219.84 kHz)를 120Hz와 100% 동일하게 유지하고, **수직 블랭킹(V-Blank) 라인만 확장**하여 주사율을 낮춥니다.
+* **지원 주사율**:
+  * **120 Hz**: 1832 lines (Vblank: 32) - 기본 출고 네이티브
+  * **100 Hz**: 2198 lines (Vblank: 398) - 부드러움과 절전 절충
+  * **80 Hz**: 2748 lines (Vblank: 948) - 체감 고주사율 저발열
+  * **75 Hz**: 2931 lines (Vblank: 1131) - 표준 영상용
+  * **60 Hz**: 3664 lines (Vblank: 1864) - **최대 배터리 절약**
+* **메타데이터 유지**: BT.2020 광색역, HDR Static Metadata (565.7 cd/m²), FreeSync/VRR(48~120Hz) 완전 보존.
+
+### 2. 부팅 통합 및 원클릭 복원/원복
+* **Early KMS 패키징**: `dracut` (Ubuntu 26.04+) 및 `initramfs-tools` (Ubuntu 22.04/24.04) 자동 감지하여 램디스크에 주입.
+* **GRUB 파라미터**: `drm.edid_firmware=eDP-1:edid/gb4p_custom_edid.bin` 자동 등록.
+* **순정 롤백 지원**: `sudo ./display_tuning.sh --restore` 실행 시 캐시 초기화 및 순정 출고 상태(120Hz)로 즉시 복원.
+
+---
+
 ## 📂 프로젝트 구조
 
 ```
@@ -111,7 +138,15 @@ GB4P_ubuntu_my_preferences/
 ├── touchpad_keyboard.sh_README.md # 터치패드 & 키보드 패치 상세 설명서
 ├── power_consumption.sh           # 전력 소모 최적화 메인 복원 스크립트
 ├── power_consumption.sh_README.md  # 전력 소모 최적화 패치 상세 설명서
+├── display_tuning.sh              # 디스플레이 다중 주사율(60~120Hz) 복원 스크립트
+├── display_tuning.sh_README.md    # 디스플레이 주사율 패치 상세 설명서
 ├── configs/
+│   ├── edid/
+│   │   └── gb4p_custom_edid.bin   # OLED 맞춤형 256B EDID 바이너리
+│   ├── dracut/
+│   │   └── edid.conf              # Dracut 램디스크 펌웨어 패키징 설정
+│   ├── initramfs-tools/
+│   │   └── edid                   # initramfs-tools 램디스크 펌웨어 훅
 │   ├── sysctl/
 │   │   └── 99-ssd-power-saving.conf  # SSD 깨움 지연 커널 파라미터
 │   ├── udev/
@@ -141,6 +176,9 @@ GB4P_ubuntu_my_preferences/
 │   └── keyd/
 │       └── default.conf              # Alt_R/Ctrl_R -> 한영/한자 키 매핑
 ├── scripts/
+│   ├── setup-display-edid.sh         # 디스플레이 EDID & 램디스크/GRUB 설정
+│   ├── restore-display-edid.sh       # 디스플레이 설정 순정 원복 스크립트
+│   ├── generate-edid.py              # EDID 타이밍 계산 및 바이너리 생성기
 │   ├── setup-power-sysctl.sh         # SSD 절전 sysctl 복원
 │   ├── setup-power-options.sh        # 바탕화면 전원 도구 & CPU 제어 복원
 │   ├── setup-power-udev.sh           # AC/DC 전환 udev 룰 복원

@@ -1,0 +1,14 @@
+#!/bin/sh
+PREREQ=""
+prereqs() { echo "$PREREQ"; }
+case $1 in prereqs) prereqs; exit 0;; esac
+
+. /usr/share/initramfs-tools/hook-functions
+
+for f in /lib/firmware/edid/*.bin /usr/lib/firmware/edid/*.bin; do
+    if [ -f "$f" ]; then
+        add_firmware "edid/${f##*/}" || true
+    fi
+done
+
+exit 0
