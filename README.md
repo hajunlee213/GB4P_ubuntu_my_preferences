@@ -36,6 +36,12 @@ chmod +x *.sh scripts/*.sh
 ```
 > AC 연결 시 80Hz VRR, 배터리 사용 시 60Hz VRR로 자동 전환되며, 주사율 변경이나 절전 모드 해제 시 풀리는 OLED `sdr-native`(sRGB 클램핑) 설정을 항상 유지합니다. (원상 복구: `./power_refresh_sdr.sh --restore`)
 
+### 5. OLED 다크모드 대비 완화 & Eye Care 복원 (`oled_contrast.sh`)
+```bash
+./oled_contrast.sh
+```
+> OLED 다크모드의 극단적 명암비로 인한 눈부심을 줄이고, 리얼 블랙(0x000000) 픽셀 소등 지연 잔상(블랙 스미어링)을 완화하는 맞춤형 ICC 프로파일 2종과 CLI 제어 도구(`oled-mode`)를 복원합니다. (순정 복구: `./oled_contrast.sh --restore`)
+
 ---
 
 ## ⚡ power_consumption (전력 소모 & 발열 튜닝 상세)
