@@ -161,6 +161,31 @@ chmod +x *.sh scripts/*.sh
 
 ---
 
+## 👁️ oled_contrast (OLED 다크모드 대비 완화 & Eye Care 상세)
+
+OLED 패널에서 다크모드 사용 시 발생하는 극단적인 명암비(무한대 대비)로 인한 야간 눈부심 및 피로감을 해소하고, 완전한 블랙(0x000000)에서 소등된 픽셀이 켜질 때 발생하는 지연 잔상(Black Smearing / 퍼플 고스팅)을 억제하기 위해 설계된 하드웨어 VCGT 튜닝 패치입니다.
+
+### 1. 16비트 VCGT 기반 무왜곡(0% 틴트) 톤 커브
+* **문제점**: CTM(Color Transform Matrix)이나 단순 감마 변경 방식은 패널의 DCI-P3 광색역 및 비선형 감마 특성과 충돌하여 무채색(회색조)이 보라색이나 녹색으로 물드는 색 왜곡(Color Tint)이 발생합니다.
+* **해결책**: 원본 EDID의 색상 보정 정보는 100% 보존한 채, **GPU 하드웨어 LUT에 직접 적용되는 16비트 VCGT(Video Card Gamma Table)**에 R, G, B 채널이 1:1:1로 완벽히 동일한 선형 톤 램프($y = \text{black\_offset} + (\text{white\_max} - \text{black\_offset}) \times x$)를 주입하여 틴트 왜곡 없이 정직한 대비 압축을 구현했습니다.
+
+### 2. 제공 프로파일 사양
+* **`Gentle Contrast` (추천/기본)**:
+  * **블랙 리프트**: **`+2.0%`** (8비트 기준 `5/255`, 픽셀 완전 소등을 방지하여 블랙 스미어링 억제 및 대비 완화)
+  * **화이트 레벨**: **`90.0%`** (8비트 기준 `230/255`, 글자 가독성은 또렷하게 유지하며 찌르는 눈부심 완화)
+* **`Medium Contrast`**:
+  * **블랙 리프트**: **`+2.5%`** (8비트 기준 `6/255`)
+  * **화이트 레벨**: **`85.0%`** (8비트 기준 `217/255`, 야간 장시간 코딩 및 문서 작업에 최적화)
+
+### 3. CLI 제어 도구 (`oled-mode`)
+* `oled-mode gentle` : Gentle Contrast 즉시 적용
+* `oled-mode medium` : Medium Contrast 즉시 적용
+* `oled-mode custom <블랙%> <화이트%>` : 원하는 비율로 실시간 ICC 생성 및 적용 (예: `oled-mode custom 2.0 90`)
+* `oled-mode status` : 현재 활성 디스플레이 프로파일 확인
+* `oled-mode reset` : CTM 초기화 및 패널 순정 공장 출하 상태로 즉시 복원
+
+---
+
 ## 📂 프로젝트 구조
 
 ```
@@ -174,9 +199,14 @@ GB4P_ubuntu_my_preferences/
 ├── display_tuning.sh_README.md    # 디스플레이 주사율 패치 상세 설명서
 ├── power_refresh_sdr.sh           # 전원 연동 주사율 & sdr-native 복원 스크립트
 ├── power_refresh_sdr.sh_README.md # 전원 연동 주사율 & sdr-native 패치 상세 설명서
+├── oled_contrast.sh               # OLED 다크모드 대비 완화 & Eye Care 복원 스크립트
+├── oled_contrast.sh_README.md      # OLED 대비 완화 패치 상세 설명서
 ├── configs/
 │   ├── edid/
 │   │   └── gb4p_custom_edid.bin   # OLED 맞춤형 256B EDID 바이너리
+│   ├── icc/
+│   │   ├── oled_gentle_contrast.icc # 블랙 +2.0%, 화이트 90.0% VCGT 프로파일
+│   │   └── oled_medium_contrast.icc # 블랙 +2.5%, 화이트 85.0% VCGT 프로파일
 │   ├── dracut/
 │   │   └── edid.conf              # Dracut 램디스크 펌웨어 패키징 설정
 │   ├── initramfs-tools/
@@ -192,6 +222,7 @@ GB4P_ubuntu_my_preferences/
 │   │   └── disable-ht.desktop            # 부팅 시 CPU 토폴로지 적용
 │   ├── bin/
 │   │   ├── disable-ht.sh             # CPU HT 및 E코어 클러스터0 차단 스크립트
+│   │   ├── oled-mode                 # OLED Eye Care CLI 전환 및 제어 도구
 │   │   └── power-refresh-sdr-daemon.py # 전원 연동 주사율 & sdr-native 데몬
 │   ├── systemd-user/
 │   │   └── power-refresh-sdr.service # systemd 사용자 서비스 유닛 파일
@@ -218,6 +249,9 @@ GB4P_ubuntu_my_preferences/
 │   ├── generate-edid.py              # EDID 타이밍 계산 및 바이너리 생성기
 │   ├── setup-power-refresh-sdr.sh    # 전원 연동 주사율 & sdr-native 복원
 │   ├── restore-power-refresh-sdr.sh  # 전원 연동 주사율 & sdr-native 원상 복구
+│   ├── setup-oled-contrast.sh        # OLED 맞춤 ICC 및 oled-mode 복원
+│   ├── restore-oled-contrast.sh      # OLED 대비 설정 순정 원복 스크립트
+│   ├── generate-oled-icc.py          # OLED VCGT ICC 생성 유틸리티
 │   ├── setup-power-sysctl.sh         # SSD 절전 sysctl 복원
 │   ├── setup-power-options.sh        # 바탕화면 전원 도구 & CPU 제어 복원
 │   ├── setup-power-udev.sh           # AC/DC 전환 udev 룰 복원
