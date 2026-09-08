@@ -42,6 +42,12 @@ chmod +x *.sh scripts/*.sh
 ```
 > OLED 다크모드의 극단적 명암비로 인한 눈부심을 줄이고, 리얼 블랙(0x000000) 픽셀 소등 지연 잔상(블랙 스미어링)을 완화하는 맞춤형 ICC 프로파일 2종과 CLI 제어 도구(`oled-mode`)를 복원합니다. (순정 복구: `./oled_contrast.sh --restore`)
 
+### 6. 드라이버 패치 & 전력 최적화 복원 (`driver_power_patch.sh`)
+```bash
+./driver_power_patch.sh
+```
+> 인텔 차세대 그래픽 드라이버(`xe`) 전환, 마이크로코드/thermald, GPU 연산 가속(OpenCL), PCIe ASPM 초절전(`powersupersave`), PowerTOP 자동 튜닝 서비스를 복원합니다. (순정 복구: `sudo ./driver_power_patch.sh --restore`)
+
 ---
 
 ## power_consumption (전력 소모 & 발열 튜닝 상세)
@@ -186,6 +192,39 @@ OLED 패널에서 다크모드 사용 시 발생하는 극단적인 명암비(�
 
 ---
 
+## driver_power_patch (드라이버 패치 & 전력 최적화 상세)
+
+인텔 메테오레이크(Meteor Lake Core Ultra 5 125H)의 차세대 하드웨어 아키텍처에 맞춰 구형 `i915` 드라이버를 최신 `xe` 드라이버로 전환하고, 유휴 전력 누수를 차단하여 배터리 효율과 시스템 안정성을 극대화한 설정들입니다.
+
+### 1. 차세대 Intel Xe 그래픽 드라이버 전환 (`xe`)
+* **배경 및 원인**: 메테오레이크의 타일(칩렛) 아키텍처에 20년 전 설계된 구형 `i915` 드라이버를 바인딩하면 부팅 중 ACPI 타이밍 충돌(Race Condition)로 멈추거나, PSR(패널 셀프 리프레시) 충돌로 화면 프리징/깜빡임이 발생합니다.
+* **해결책**:
+  * 메테오레이크-P iGPU(PCI ID `8086:7d55`)에 최신 **`xe` 드라이버**를 독점 바인딩 (`i915.force_probe=!7d55 xe.force_probe=7d55`)
+  * Early KMS 부팅 램디스크(dracut)에 `xe` 모듈을 사전 포함하여 부팅 글리치 원천 차단
+  * 노트북 내장 스피커(`snd_sof_intel_hda_common`) 및 OLED 다중 주사율/sdr-native 클램핑과 완벽 호환 보장
+
+### 2. 인텔 CPU 마이크로코드 최신 패치 & 써멀 관리 (`thermald`)
+* **`intel-microcode`**: 메테오레이크 CPUID(`0x000a06a4`) 보안 및 전력 제어 마이크로코드 최신 펌웨어 적용
+* **`thermald`**: 인텔 DPTF(Dynamic Platform and Thermal Framework) 기반 온도 모니터링 데몬을 상시 가동하여 급격한 온도 상승 및 스로틀링 완화
+
+### 3. GPU 하드웨어 연산 가속 (OpenCL Compute Runtime)
+* **패키지**: `intel-opencl-icd`, `clinfo`
+* **효과**: Intel Arc Xe-LPG 그래픽 코어의 병렬 연산(GPGPU)을 활성화하여 딥러닝, 미디어 인코딩 및 이미지 처리 가속
+
+### 4. PCIe ASPM 초절전 정책 (`pcie_aspm.policy=powersupersave`)
+* **목적**: NVMe SSD, 무선랜 등 시스템 내 모든 PCIe 버스가 가장 깊은 절전 서브스테이트(L1.1 / L1.2)로 강제 진입하도록 커널 정책 지정
+* **효과**: 버스 유휴 전력을 최소화하여 CPU 패키지가 최하위 극저전력 유휴 상태인 **`Package C10`**에 원활하게 진입하도록 유도 (배터리 사용 시간 대폭 향상)
+
+### 5. PowerTOP Auto-Tune 백그라운드 서비스 (`powertop.service`)
+* **설정 파일**: `/etc/systemd/system/powertop.service`
+* **동작**: 부팅 시 `powertop --auto-tune`을 1회 실행하여 Wi-Fi, SPI, 센서 허브, GNA 등 모든 PCI/USB 디바이스의 Runtime PM을 `auto`(자동 절전)로 즉시 전환
+
+### 6. 커널 인터럽트 타이머 절전 (`kernel.nmi_watchdog = 0`)
+* **설정 파일**: `/etc/sysctl.d/99-nmi-watchdog.conf`
+* **효과**: 1초마다 유휴 코어를 강제로 깨우는 커널 NMI 감시견 타이머를 비활성화하여 코어의 딥 슬립 상태 지속 시간 극대화
+
+---
+
 ## 프로젝트 구조
 
 ```
@@ -201,6 +240,8 @@ GB4P_ubuntu_my_preferences/
 ├── power_refresh_sdr.sh_README.md # 전원 연동 주사율 & sdr-native 패치 상세 설명서
 ├── oled_contrast.sh               # OLED 다크모드 대비 완화 & Eye Care 복원 스크립트
 ├── oled_contrast.sh_README.md      # OLED 대비 완화 패치 상세 설명서
+├── driver_power_patch.sh          # 드라이버 패치 & 전력 최적화 복원 스크립트
+├── driver_power_patch.sh_README.md # 드라이버 패치 & 전력 최적화 상세 설명서
 ├── configs/
 │   ├── edid/
 │   │   └── gb4p_custom_edid.bin   # OLED 맞춤형 256B EDID 바이너리
@@ -208,11 +249,15 @@ GB4P_ubuntu_my_preferences/
 │   │   ├── oled_gentle_contrast.icc # 블랙 +2.0%, 화이트 90.0% VCGT 프로파일
 │   │   └── oled_medium_contrast.icc # 블랙 +2.5%, 화이트 85.0% VCGT 프로파일
 │   ├── dracut/
-│   │   └── edid.conf              # Dracut 램디스크 펌웨어 패키징 설정
+│   │   ├── edid.conf              # Dracut 램디스크 펌웨어 패키징 설정
+│   │   └── gpu-drivers.conf       # Dracut i915/xe 램디스크 드라이버 설정
 │   ├── initramfs-tools/
 │   │   └── edid                   # initramfs-tools 램디스크 펌웨어 훅
 │   ├── sysctl/
+│   │   ├── 99-nmi-watchdog.conf   # NMI Watchdog 인터럽트 절전 파라미터
 │   │   └── 99-ssd-power-saving.conf  # SSD 깨움 지연 커널 파라미터
+│   ├── systemd/
+│   │   └── powertop.service       # PowerTOP auto-tune systemd 서비스 유닛
 │   ├── udev/
 │   │   └── 99-power-profile-switch.rules # AC/DC 자동 전환 감지 udev 룰
 │   ├── sudoers/
@@ -244,6 +289,8 @@ GB4P_ubuntu_my_preferences/
 │   └── keyd/
 │       └── default.conf              # Alt_R/Ctrl_R -> 한영/한자 키 매핑
 ├── scripts/
+│   ├── setup-driver-power-patch.sh   # 드라이버 & 전력 최적화 복원 서브 스크립트
+│   ├── restore-driver-power-patch.sh # 드라이버 & 전력 최적화 순정 롤백 스크립트
 │   ├── setup-display-edid.sh         # 디스플레이 EDID & 램디스크/GRUB 설정
 │   ├── restore-display-edid.sh       # 디스플레이 설정 순정 원복 스크립트
 │   ├── generate-edid.py              # EDID 타이밍 계산 및 바이너리 생성기

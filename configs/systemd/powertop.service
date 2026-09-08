@@ -1,0 +1,11 @@
+[Unit]
+Description=PowerTOP Auto-Tune Service
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/powertop --auto-tune
+
+[Install]
+WantedBy=multi-user.target
