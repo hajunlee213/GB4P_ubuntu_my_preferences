@@ -1,0 +1,2 @@
+# AC (충전기 어댑터) 연결 상태 변경 시 자동 전원 프로필 스위칭
+SUBSYSTEM=="power_supply", KERNEL=="ADP1", ACTION=="change", RUN+="/usr/bin/bash __TARGET_HOME__/Desktop/OneClickScripts/PowerOptions/handle_power_change.sh"

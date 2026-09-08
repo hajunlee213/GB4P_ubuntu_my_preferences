@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Power Options Auto-Apply
+Comment=Auto-detect AC/DC state and apply matching power profile on startup
+Exec=__TARGET_HOME__/Desktop/OneClickScripts/PowerOptions/apply_on_boot.sh
+Icon=battery
+Terminal=false
+Categories=Utility;
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=2

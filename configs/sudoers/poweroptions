@@ -1,0 +1,1 @@
+__TARGET_USER__ ALL=(ALL) NOPASSWD: __TARGET_HOME__/Desktop/OneClickScripts/PowerOptions/*.sh

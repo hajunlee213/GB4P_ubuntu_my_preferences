@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Disable HT CPUs
+Comment=Disable P-core HT and adjacent E-core cluster
+Exec=sudo __TARGET_HOME__/.local/bin/disable-ht.sh
+Terminal=false
+X-GNOME-Autostart-enabled=true
