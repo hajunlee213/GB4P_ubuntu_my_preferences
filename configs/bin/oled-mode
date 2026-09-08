@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+"""
+OLED Display Eye Care & Contrast Controller (oled-mode)
+Galaxy Book 4 Pro (AMOLED) & Ubuntu GNOME Wayland
+
+Provides fast switching between tuned VCGT profiles, custom contrast tuning,
+factory reset, and profile status checking.
+"""
+
+import sys
+import os
+import glob
+import subprocess
+import ctypes
+import dbus
+
+def get_display_device():
+    """Detect display device ID from colormgr."""
+    try:
+        res = subprocess.run(["colormgr", "get-devices"], capture_output=True, text=True, check=True)
+        current_dev = None
+        is_display = False
+        for line in res.stdout.splitlines():
+            line = line.strip()
+            if line.startswith("Device ID:"):
+                current_dev = line.split(":", 1)[1].strip()
+                is_display = False
+            elif line.startswith("Type:") and "display" in line.lower():
+                is_display = True
+            if current_dev and is_display:
+                return current_dev
+    except Exception:
+        pass
+    return "xrandr-Samsung Display Corp.-0x4188-0x00000000"
+
+def get_original_edid_profile():
+    """Find original monitor EDID ICC profile."""
+    candidates = glob.glob(os.path.expanduser("~/.local/share/icc/edid-*.icc"))
+    if candidates:
+        candidates.sort(key=os.path.getmtime, reverse=True)
+        return candidates[0]
+    return "/home/hajun/.local/share/icc/edid-ae3a988bc0b6afef29a4ee2d5938056a.icc"
+
+def reset_ctm():
+    """Reset Mutter OutputCTM to identity matrix to eliminate software tint."""
+    try:
+        bus = dbus.SessionBus()
+        obj = bus.get_object('org.gnome.Mutter.DisplayConfig', '/org/gnome/Mutter/DisplayConfig')
+        iface = dbus.Interface(obj, 'org.gnome.Mutter.DisplayConfig')
+        serial, physical_monitors, _, _ = iface.GetCurrentState()
+        ONE = 1 << 32
+        identity = (ONE, 0, 0, 0, ONE, 0, 0, 0, ONE)
+        for i in range(len(physical_monitors)):
+            iface.SetOutputCTM(serial, i, identity)
+    except Exception:
+        pass
+
+def find_or_import_profile(file_path, dev_id):
+    """Find colormgr profile ID by filename, importing and adding to device if necessary."""
+    file_path = os.path.expanduser(file_path)
+    if not os.path.isfile(file_path):
+        return None
+
+    # Find existing profile ID
+    res = subprocess.run(["colormgr", "find-profile-by-filename", file_path], capture_output=True, text=True)
+    prof_id = None
+    for line in res.stdout.splitlines():
+        if "Profile ID:" in line:
+            prof_id = line.split()[2]
+            break
+
+    if not prof_id:
+        subprocess.run(["colormgr", "import-profile", file_path], capture_output=True, text=True)
+        res = subprocess.run(["colormgr", "find-profile-by-filename", file_path], capture_output=True, text=True)
+        for line in res.stdout.splitlines():
+            if "Profile ID:" in line:
+                prof_id = line.split()[2]
+                break
+
+    if prof_id:
+        subprocess.run(["colormgr", "device-add-profile", dev_id, prof_id], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    return prof_id
+
+def set_profile(dev_id, prof_id):
+    """Apply profile to device after resetting CTM."""
+    reset_ctm()
+    subprocess.run(["colormgr", "device-make-profile-default", dev_id, prof_id], check=True, stdout=subprocess.DEVNULL)
+
+def generate_custom(black_pct, white_pct, dev_id):
+    """Generate and apply on-the-fly custom ICC profile."""
+    orig_edid = get_original_edid_profile()
+    if not os.path.isfile(orig_edid):
+        print(f"❌ 원본 EDID 프로파일을 찾을 수 없습니다: {orig_edid}", file=sys.stderr)
+        return
+
+    lcms = ctypes.CDLL('liblcms2.so.2')
+    lcms.cmsOpenProfileFromFile.restype = ctypes.c_void_p
+    lcms.cmsOpenProfileFromFile.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
+    lcms.cmsBuildTabulatedToneCurve16.restype = ctypes.c_void_p
+    lcms.cmsBuildTabulatedToneCurve16.argtypes = [ctypes.c_void_p, ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint16)]
+    lcms.cmsFreeToneCurve.argtypes = [ctypes.c_void_p]
+    lcms.cmsMLUalloc.restype = ctypes.c_void_p
+    lcms.cmsMLUalloc.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+    lcms.cmsMLUsetASCII.restype = ctypes.c_int
+    lcms.cmsMLUsetASCII.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
+    lcms.cmsMLUfree.argtypes = [ctypes.c_void_p]
+    lcms.cmsWriteTag.restype = ctypes.c_int
+    lcms.cmsWriteTag.argtypes = [ctypes.c_void_p, ctypes.c_uint32, ctypes.c_void_p]
+    lcms.cmsSaveProfileToFile.restype = ctypes.c_int
+    lcms.cmsSaveProfileToFile.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+    lcms.cmsCloseProfile.restype = ctypes.c_int
+    lcms.cmsCloseProfile.argtypes = [ctypes.c_void_p]
+
+    hProf = lcms.cmsOpenProfileFromFile(orig_edid.encode('utf-8'), b'r')
+    title = f"OLED Custom (B:{black_pct*100:.1f}% W:{white_pct*100:.1f}%)"
+    mlu = lcms.cmsMLUalloc(None, 1)
+    lcms.cmsMLUsetASCII(mlu, b'en', b'US', title.encode('utf-8'))
+    lcms.cmsWriteTag(hProf, 0x64657363, mlu)
+    lcms.cmsMLUfree(mlu)
+
+    N = 1024
+    vals = (ctypes.c_uint16 * N)()
+    for i in range(N):
+        x = i / (N - 1)
+        y = black_pct + (white_pct - black_pct) * x
+        vals[i] = int(max(0.0, min(1.0, y)) * 65535.0 + 0.5)
+
+    cR = lcms.cmsBuildTabulatedToneCurve16(None, N, vals)
+    cG = lcms.cmsBuildTabulatedToneCurve16(None, N, vals)
+    cB = lcms.cmsBuildTabulatedToneCurve16(None, N, vals)
+    curves = (ctypes.c_void_p * 3)(cR, cG, cB)
+    lcms.cmsWriteTag(hProf, 0x76636774, ctypes.byref(curves))
+    lcms.cmsFreeToneCurve(cR)
+    lcms.cmsFreeToneCurve(cG)
+    lcms.cmsFreeToneCurve(cB)
+
+    out_path = os.path.expanduser("~/.local/share/icc/oled_custom.icc")
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    lcms.cmsSaveProfileToFile(hProf, out_path.encode('utf-8'))
+    lcms.cmsCloseProfile(hProf)
+
+    prof_id = find_or_import_profile(out_path, dev_id)
+    if prof_id:
+        set_profile(dev_id, prof_id)
+        print(f"✅ 커스텀 프로파일 적용 완료: 블랙 +{black_pct*100:.1f}%, 화이트 {white_pct*100:.1f}%")
+    else:
+        print("❌ 커스텀 프로파일 등록에 실패했습니다.", file=sys.stderr)
+
+def main():
+    dev_id = get_display_device()
+
+    if len(sys.argv) < 2:
+        print("사용법: oled-mode {gentle | medium | custom <블랙%> <화이트%> | reset | status}")
+        print("")
+        print("  gentle : 블랙 +2.0%, 화이트 90.0% (자연스러움, 틴트 없음, 눈부심 완화) [추천]")
+        print("  medium : 블랙 +2.5%, 화이트 85.0% (더 확실한 다크모드 대비 완화)")
+        print("  custom : 원하는 비율로 즉시 튜닝 (예: oled-mode custom 2.0 90)")
+        print("  reset  : 패널 순정 기본값(공장 출하 상태)으로 복원")
+        print("  status : 현재 프로파일 확인")
+        sys.exit(0)
+
+    cmd = sys.argv[1].lower()
+
+    if cmd in ("gentle", "contrast", "soft"):
+        prof_id = find_or_import_profile("~/.local/share/icc/oled_gentle_contrast.icc", dev_id)
+        if not prof_id:
+            print("❌ oled_gentle_contrast.icc 프로파일을 찾을 수 없습니다. ./oled_contrast.sh 를 먼저 실행하세요.", file=sys.stderr)
+            sys.exit(1)
+        set_profile(dev_id, prof_id)
+        print("✅ [OLED Eye Care] 'Gentle Contrast' 적용 완료")
+        print("   - 블랙 리프트: +2.0% (스미어링 방지, 틴트 0%)")
+        print("   - 화이트 레벨: 90.0% (눈부심 억제)")
+
+    elif cmd in ("medium", "mid"):
+        prof_id = find_or_import_profile("~/.local/share/icc/oled_medium_contrast.icc", dev_id)
+        if not prof_id:
+            print("❌ oled_medium_contrast.icc 프로파일을 찾을 수 없습니다. ./oled_contrast.sh 를 먼저 실행하세요.", file=sys.stderr)
+            sys.exit(1)
+        set_profile(dev_id, prof_id)
+        print("✅ [OLED Eye Care] 'Medium Contrast' 적용 완료")
+        print("   - 블랙 리프트: +2.5%")
+        print("   - 화이트 레벨: 85.0%")
+
+    elif cmd == "custom":
+        if len(sys.argv) < 4:
+            print("사용법: oled-mode custom <블랙%> <화이트%> (예: oled-mode custom 2.0 90)")
+            sys.exit(1)
+        b = float(sys.argv[2]) / 100.0
+        w = float(sys.argv[3]) / 100.0
+        generate_custom(b, w, dev_id)
+
+    elif cmd in ("reset", "default"):
+        reset_ctm()
+        orig_edid = get_original_edid_profile()
+        prof_id = find_or_import_profile(orig_edid, dev_id)
+        if prof_id:
+            subprocess.run(["colormgr", "device-make-profile-default", dev_id, prof_id], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print("🔄 [OLED Eye Care] 패널 원래 기본 상태(공장 기본값)로 깨끗하게 복구되었습니다.")
+        else:
+            print("⚠️ 원본 EDID 프로파일을 찾지 못해 CTM만 초기화했습니다.")
+
+    elif cmd == "status":
+        print(f"=== 디스플레이 장치: {dev_id} ===")
+        res = subprocess.run(["colormgr", "device-get-default-profile", dev_id], capture_output=True, text=True)
+        for line in res.stdout.splitlines():
+            if any(k in line for k in ["Title:", "Filename:", "Profile ID:"]):
+                print(f"  {line}")
+    else:
+        print(f"알 수 없는 명령: {cmd}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
