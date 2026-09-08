@@ -4,7 +4,7 @@
 
 ---
 
-## 🚀 빠른 시작 (원클릭 복원)
+## 빠른 시작 (원클릭 복원)
 
 우분투를 새로 설치한 후 터미널에서 원하는 복원 스크립트를 실행합니다:
 
@@ -44,7 +44,7 @@ chmod +x *.sh scripts/*.sh
 
 ---
 
-## ⚡ power_consumption (전력 소모 & 발열 튜닝 상세)
+## power_consumption (전력 소모 & 발열 튜닝 상세)
 
 인텔 메테오레이크(Meteor Lake Core Ultra 5 125H 등)의 높은 유휴/부하 전력 소모와 피크 발열(90°C+ 쓰로틀링)을 해결하기 위해 최적화된 설정들입니다.
 
@@ -69,11 +69,11 @@ chmod +x *.sh scripts/*.sh
 * **커널 udev 룰**: `/etc/udev/rules.d/99-power-profile-switch.rules`
   * 충전기 어댑터(`ADP1`)의 연결/분리 이벤트를 실시간 감지하여 `handle_power_change.sh` 호출
   * `flock` 기반 중복 실행 방지(Lock) 및 0.3초 디바운스로 안정화 처리
-* **🔌 AC 모드 (충전기 연결 시)**:
+* **AC 모드 (충전기 연결 시)**:
   * **터보 부스트**: ON (`no_turbo = 0`)
   * **클럭 상한선**: 65% (`max_perf_pct = 65`) - "2번 밸런스 터보"
   * **삼성 팬/Gnome 모드**: `Balanced` (성능과 발열 밸런스)
-* **🔋 DC 모드 (배터리 사용 시)**:
+* **DC 모드 (배터리 사용 시)**:
   * **터보 부스트**: OFF (`no_turbo = 1`) - 20W+ 피크 전력 튐 및 급격한 방전 차단
   * **클럭 상한선**: 100% (`max_perf_pct = 100`) - 베이스 클럭 한도 내에서 100% 성능 쾌적하게 유지
   * **삼성 팬/Gnome 모드**: `Balanced` (적극적 쿨링을 유지하여 배터리 모드 발열 누적 원천 차단)
@@ -96,7 +96,7 @@ chmod +x *.sh scripts/*.sh
 
 ---
 
-## 🛠️ touchpad_keyboard (터치패드 & 키보드 튜닝 상세)
+## touchpad_keyboard (터치패드 & 키보드 튜닝 상세)
 
 ### 1. 터치패드 팜리젝션 & DWT 연동 (`/etc/libinput/local-overrides.quirks`)
 - **Zinitix 터치패드 (`14E5:E760`) 튜닝**:
@@ -107,8 +107,8 @@ chmod +x *.sh scripts/*.sh
 
 ### 2. keyd 한영/한자 키 리매핑 (`/etc/keyd/default.conf`)
 - **리매핑 규칙**:
-  - **오른쪽 Alt (Alt_R)** ➡️ **한영 키 (Hangul / KEY_HANGEUL)**
-  - **오른쪽 Ctrl (Ctrl_R)** ➡️ **한자 키 (Hanja / KEY_HANJA)**
+  - **오른쪽 Alt (Alt_R)** -> **한영 키 (Hangul / KEY_HANGEUL)**
+  - **오른쪽 Ctrl (Ctrl_R)** -> **한자 키 (Hanja / KEY_HANJA)**
 - **Ubuntu 26.04 패키지 호환**:
   - `/usr/local/bin/keyd` 심볼릭 링크 자동 생성
 
@@ -120,7 +120,7 @@ chmod +x *.sh scripts/*.sh
 
 ---
 
-## 🖥️ display_tuning (디스플레이 다중 주사율 & OLED 패널 최적화 상세)
+## display_tuning (디스플레이 다중 주사율 & OLED 패널 최적화 상세)
 
 갤럭시 북4 프로 16인치(Samsung ATNA60CL07-0 2880×1800 AMOLED) 패널의 출고 EDID ROM에는 120Hz 상세 타이밍만 등록되어 있어 우분투에서 60Hz 등 배터리 절약용 주사율을 선택할 수 없습니다. 또한 일반 LCD처럼 픽셀 클럭을 낮추면 OLED TCON 링크가 끊겨 화면이 꺼지는(블랙아웃) 문제가 있습니다.
 
@@ -141,13 +141,13 @@ chmod +x *.sh scripts/*.sh
 
 ---
 
-## 🔄 power_refresh_sdr (전원 연동 주사율 & sdr-native Governor 상세)
+## power_refresh_sdr (전원 연동 주사율 & sdr-native Governor 상세)
 
 충전기 연결(AC)과 배터리 사용(DC)에 따라 디스플레이 주사율을 지능적으로 전환하고, 주사율 변경이나 부팅/절전 복귀 시 풀려버리는 OLED 광색역 sRGB 클램핑(`sdr-native`)을 항상 자동으로 유지하는 백그라운드 서비스입니다.
 
 ### 1. 전원 상태별 주사율 자동 동적 전환
-* **🔌 AC 연결 시**: **80Hz VRR** (부드러운 화면 체감과 저발열의 균형)
-* **🔋 DC(배터리) 사용 시**: **60Hz VRR** (OLED 패널 배터리 소모 최소화)
+* **AC 연결 시**: **80Hz VRR** (부드러운 화면 체감과 저발열의 균형)
+* **DC(배터리) 사용 시**: **60Hz VRR** (OLED 패널 배터리 소모 최소화)
 * **물리적 AC 감지**: 삼성 배터리 수명 보호(80% 충전 제한)가 켜져 있어 '충전 중'이 아니더라도 `/sys/class/power_supply/ADP1/online` 등 물리적 전원 어댑터 연결을 직접 감지하여 정확하게 상태를 판별합니다.
 
 ### 2. OLED 광색역 sRGB 클램핑 (`sdr-native`) 자동 주입
@@ -161,7 +161,7 @@ chmod +x *.sh scripts/*.sh
 
 ---
 
-## 👁️ oled_contrast (OLED 다크모드 대비 완화 & Eye Care 상세)
+## oled_contrast (OLED 다크모드 대비 완화 & Eye Care 상세)
 
 OLED 패널에서 다크모드 사용 시 발생하는 극단적인 명암비(무한대 대비)로 인한 야간 눈부심 및 피로감을 해소하고, 완전한 블랙(0x000000)에서 소등된 픽셀이 켜질 때 발생하는 지연 잔상(Black Smearing / 퍼플 고스팅)을 억제하기 위해 설계된 하드웨어 VCGT 튜닝 패치입니다.
 
@@ -186,7 +186,7 @@ OLED 패널에서 다크모드 사용 시 발생하는 극단적인 명암비(�
 
 ---
 
-## 📂 프로젝트 구조
+## 프로젝트 구조
 
 ```
 GB4P_ubuntu_my_preferences/
