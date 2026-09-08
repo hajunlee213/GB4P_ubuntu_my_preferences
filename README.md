@@ -11,8 +11,8 @@
 ```bash
 git clone https://github.com/your-username/GB4P_ubuntu_my_preferences.git # (또는 로컬 복사본)
 cd GB4P_ubuntu_my_preferences
-chmod +x install.sh scripts/*.sh
-./install.sh
+chmod +x touchpad_keyboard.sh scripts/*.sh
+./touchpad_keyboard.sh
 ```
 
 ---
@@ -82,7 +82,7 @@ chmod +x install.sh scripts/*.sh
 
 ```
 GB4P_ubuntu_my_preferences/
-├── install.sh                     # 원클릭 통합 설치 엔트리포인트
+├── touchpad_keyboard.sh           # 터치패드 & 키보드(keyd) 복원 스크립트
 ├── configs/
 │   ├── libinput/
 │   │   └── local-overrides.quirks    # 터치패드 팜리젝션 & DWT quirks

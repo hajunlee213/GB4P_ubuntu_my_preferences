@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "========================================================="
-echo " Galaxy Book 4 Pro (GB4P) Ubuntu 개인 설정 원클릭 복원"
+echo " Galaxy Book 4 Pro (GB4P) 터치패드 및 키보드(keyd) 설정 복원"
 echo "========================================================="
 
 # root 권한 확인
@@ -26,7 +26,7 @@ bash "${SCRIPT_DIR}/scripts/setup-gnome.sh"
 echo ""
 
 echo "========================================================="
-echo " [SUCCESS] 모든 개인 설정 복원이 완료되었습니다!"
+echo " [SUCCESS] 터치패드 및 키보드 설정 복원이 완료되었습니다!"
 echo "========================================================="
 echo " 1. 터치패드 팜리젝션: /etc/libinput/local-overrides.quirks 적용됨"
 echo " 2. keyd 한영/한자 키 매핑: /etc/keyd/default.conf 적용됨"
