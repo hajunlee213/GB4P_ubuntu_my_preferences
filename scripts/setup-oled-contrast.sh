@@ -55,10 +55,20 @@ mkdir -p "${USER_BIN_DIR}"
 
 # 3. ICC 프로파일 복사
 echo "-> OLED 맞춤형 ICC 프로파일 복사..."
-cp -f "${PROJECT_ROOT}/configs/icc/oled_gentle_contrast.icc" "${USER_ICC_DIR}/"
-cp -f "${PROJECT_ROOT}/configs/icc/oled_medium_contrast.icc" "${USER_ICC_DIR}/"
-cp -f "${PROJECT_ROOT}/configs/icc/oled_pure_black.icc" "${USER_ICC_DIR}/"
-chmod 644 "${USER_ICC_DIR}/oled_gentle_contrast.icc" "${USER_ICC_DIR}/oled_medium_contrast.icc" "${USER_ICC_DIR}/oled_pure_black.icc"
+PROFILES=(
+    "oled_high_contrast.icc"
+    "oled_high_pure_black.icc"
+    "oled_medium_contrast.icc"
+    "oled_medium_pure_black.icc"
+)
+
+# 구버전 파일 정리
+rm -f "${USER_ICC_DIR}/oled_gentle_contrast.icc" "${USER_ICC_DIR}/oled_pure_black.icc"
+
+for p in "${PROFILES[@]}"; do
+    cp -f "${PROJECT_ROOT}/configs/icc/${p}" "${USER_ICC_DIR}/"
+    chmod 644 "${USER_ICC_DIR}/${p}"
+done
 
 # 4. oled-mode CLI 도구 설치
 echo "-> oled-mode CLI 도구 설치: ${USER_BIN_DIR}/oled-mode"
@@ -73,18 +83,17 @@ fi
 
 # 소유권 정리 (root로 실행된 경우)
 if [ "$EUID" -eq 0 ]; then
-    chown "${TARGET_USER}:${TARGET_USER}" \
-        "${USER_ICC_DIR}/oled_gentle_contrast.icc" \
-        "${USER_ICC_DIR}/oled_medium_contrast.icc" \
-        "${USER_ICC_DIR}/oled_pure_black.icc" \
-        "${USER_BIN_DIR}/oled-mode"
+    for p in "${PROFILES[@]}"; do
+        chown "${TARGET_USER}:${TARGET_USER}" "${USER_ICC_DIR}/${p}"
+    done
+    chown "${TARGET_USER}:${TARGET_USER}" "${USER_BIN_DIR}/oled-mode"
 fi
 
 # 5. colormgr에 프로파일 등록 및 디스플레이 장치에 연결
 echo "-> colord 컬러 매니저에 ICC 프로파일 등록..."
-run_user_cmd colormgr import-profile "${USER_ICC_DIR}/oled_gentle_contrast.icc" 2>/dev/null || true
-run_user_cmd colormgr import-profile "${USER_ICC_DIR}/oled_medium_contrast.icc" 2>/dev/null || true
-run_user_cmd colormgr import-profile "${USER_ICC_DIR}/oled_pure_black.icc" 2>/dev/null || true
+for p in "${PROFILES[@]}"; do
+    run_user_cmd colormgr import-profile "${USER_ICC_DIR}/${p}" 2>/dev/null || true
+done
 
 # 디스플레이 장치 탐색
 DEV_ID="$(run_user_cmd python3 -c '
@@ -109,22 +118,15 @@ except Exception:
 echo "-> 타겟 디스플레이 장치: ${DEV_ID}"
 
 # 프로파일 장치 연결
-ID_GENTLE="$(run_user_cmd colormgr find-profile-by-filename "${USER_ICC_DIR}/oled_gentle_contrast.icc" 2>/dev/null | grep "Profile ID:" | awk '{print $3}' || true)"
-ID_MEDIUM="$(run_user_cmd colormgr find-profile-by-filename "${USER_ICC_DIR}/oled_medium_contrast.icc" 2>/dev/null | grep "Profile ID:" | awk '{print $3}' || true)"
-ID_PURE="$(run_user_cmd colormgr find-profile-by-filename "${USER_ICC_DIR}/oled_pure_black.icc" 2>/dev/null | grep "Profile ID:" | awk '{print $3}' || true)"
+for p in "${PROFILES[@]}"; do
+    P_ID="$(run_user_cmd colormgr find-profile-by-filename "${USER_ICC_DIR}/${p}" 2>/dev/null | grep "Profile ID:" | awk '{print $3}' || true)"
+    if [ -n "$P_ID" ]; then
+        run_user_cmd colormgr device-add-profile "$DEV_ID" "$P_ID" 2>/dev/null || true
+    fi
+done
 
-if [ -n "$ID_GENTLE" ]; then
-    run_user_cmd colormgr device-add-profile "$DEV_ID" "$ID_GENTLE" 2>/dev/null || true
-fi
-if [ -n "$ID_MEDIUM" ]; then
-    run_user_cmd colormgr device-add-profile "$DEV_ID" "$ID_MEDIUM" 2>/dev/null || true
-fi
-if [ -n "$ID_PURE" ]; then
-    run_user_cmd colormgr device-add-profile "$DEV_ID" "$ID_PURE" 2>/dev/null || true
-fi
-
-# 6. 기본 프로파일(Gentle Contrast) 즉시 적용
-echo "-> 기본 프로파일 (Gentle Contrast) 활성화..."
-run_user_cmd "${USER_BIN_DIR}/oled-mode" gentle
+# 6. 기본 프로파일(High Contrast) 즉시 적용
+echo "-> 기본 프로파일 (High Contrast) 활성화..."
+run_user_cmd "${USER_BIN_DIR}/oled-mode" high
 
 echo "[SUCCESS] OLED 다크모드 대비 완화 설정 복원 완료!"

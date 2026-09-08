@@ -27,9 +27,10 @@
 
 | 구분 | 경로 | 설명 |
 | :--- | :--- | :--- |
-| **ICC 프로파일 (Gentle)** | `~/.local/share/icc/oled_gentle_contrast.icc` | 블랙 +2.0%, 화이트 90.0% 맞춤 프로파일 |
-| **ICC 프로파일 (Medium)** | `~/.local/share/icc/oled_medium_contrast.icc` | 블랙 +4.0%, 화이트 85.0% 맞춤 프로파일 |
-| **ICC 프로파일 (Pure Black)** | `~/.local/share/icc/oled_pure_black.icc` | 블랙 0.0%, 화이트 85.0% 맞춤 프로파일 (전력/번인 최우선) |
+| **ICC 프로파일 (High Contrast)** | `~/.local/share/icc/oled_high_contrast.icc` | 화이트 90.0%, 블랙 +2.0% (기존 Gentle에서 개명, 균형형) |
+| **ICC 프로파일 (High Pure Black)** | `~/.local/share/icc/oled_high_pure_black.icc` | 화이트 90.0%, 블랙 0.0% (밝은 화이트 + 리얼블랙 완전 소등) |
+| **ICC 프로파일 (Medium Contrast)** | `~/.local/share/icc/oled_medium_contrast.icc` | 화이트 85.0%, 블랙 +4.0% (눈 편안함 최우선, 강한 대비 완화) |
+| **ICC 프로파일 (Medium Pure Black)** | `~/.local/share/icc/oled_medium_pure_black.icc` | 화이트 85.0%, 블랙 0.0% (기존 Pure Black에서 개명, 전력/번인 최우선) |
 | **커스텀 ICC 프로파일** | `~/.local/share/icc/oled_custom.icc` | `oled-mode custom` 실행 시 실시간 생성되는 프로파일 |
 | **CLI 제어 도구** | `~/.local/bin/oled-mode` | 모드 전환, 실시간 튜닝, 원복을 수행하는 실행 스크립트 |
 | **시스템 심볼릭 링크** | `/usr/local/bin/oled-mode` | 터미널 어디서나 `oled-mode`를 즉시 실행할 수 있는 링크 |
@@ -47,35 +48,44 @@ $$y = \text{black\_offset} + (\text{white\_max} - \text{black\_offset}) \times x
 - $x \in [0.0, 1.0]$: 애플리케이션이 요청하는 정규화된 입력 밝기 (0: 순수 블랙, 1: 순수 화이트)
 - $y \in [0.0, 1.0]$: 실제 디스플레이 패널로 출력되는 정규화된 16비트 LUT 출력값
 
-### 📊 지원 프로파일 상세 비교
+### 📊 2x2 매트릭스 프로파일 상세 비교
 
-| 프로파일 | 블랙 오프셋 | 화이트 상한선 | 8비트 환산 (입력 0 / 255) | 주요 용도 및 권장 환경 |
-| :--- | :---: | :---: | :---: | :--- |
-| **`Gentle Contrast`** *(기본값/추천)* | **`+2.0%`** | **`90.0%`** | `0` $\rightarrow$ `5` / `255` $\rightarrow$ `230` | **일상적인 다크모드 개발 및 웹서핑 권장**.<br>글자의 선명함을 온전히 유지하면서 찌르는 자극만 억제하고 스미어링 방지 |
-| **`Medium Contrast`** | **`+4.0%`** | **`85.0%`** | `0` $\rightarrow$ `10` / `255` $\rightarrow$ `217` | **야간 작업 및 확실한 스미어링 방지 권장**.<br>더 부드러운 다크모드 명암비와 확실한 블랙 리프트 제공 |
-| **`Pure Black`** | **`0.0%`** | **`85.0%`** | `0` $\rightarrow$ `0` / `255` $\rightarrow$ `217` | **전력 절약 및 번인 방지 최우선 권장**.<br>OLED 픽셀 완전 소등(0 cd/m²)으로 다크모드 배터리 절약 극대화 및 피크 눈부심 완화 |
-| **`Custom`** | 사용자 지정 | 사용자 지정 | 자유 튜닝 | `oled-mode custom <블랙%> <화이트%>` 로 즉시 미세조정 |
-| **`Reset (순정)`** | `0.0%` | `100.0%` | `0` $\rightarrow$ `0` / `255` $\rightarrow$ `255` | 팩토리 기본값 복구 (100% 네이티브 광색역 출고 상태) |
+화이트포인트 2단계(High 90% / Medium 85%)와 블랙 레벨 2단계(Contrast 리프트 / Pure Black 소등)의 조합으로 구성됩니다:
+
+| 분류 | 프로파일 | 블랙 오프셋 | 화이트 상한선 | 8비트 환산 | 주요 용도 및 권장 환경 |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| **High**<br>(화이트 90%) | **`High Contrast`** *(추천 기본값)*<br>`oled-mode high` | **`+2.0%`** | **`90.0%`** | `0` $\rightarrow$ `5`<br>`255` $\rightarrow$ `230` | **눈 + 전력 + 번인 최적 밸런스** (기존 Gentle).<br>OLED 특유의 깊은 블랙감을 유지하며 스미어링 완화 및 눈부심 차단 |
+| | **`High Pure Black`**<br>`oled-mode high-pure` | **`0.0%`** | **`90.0%`** | `0` $\rightarrow$ `0`<br>`255` $\rightarrow$ `230` | **선명한 가독성 + 다크모드 배터리 절약**.<br>화이트를 90%로 적절히 낮추면서 리얼 블랙(0 cd/m²) 완전 소등 유지 |
+| **Medium**<br>(화이트 85%) | **`Medium Contrast`**<br>`oled-mode medium` | **`+4.0%`** | **`85.0%`** | `0` $\rightarrow$ `10`<br>`255` $\rightarrow$ `217` | **눈의 편안함 & 스미어링 완전 제거 최우선**.<br>배경 소자가 4% 상시 발광하여 전력/번인 손해는 있으나 가장 부드러움 |
+| | **`Medium Pure Black`**<br>`oled-mode medium-pure` | **`0.0%`** | **`85.0%`** | `0` $\rightarrow$ `0`<br>`255` $\rightarrow$ `217` | **전력 절약 & 번인 방지 최우선** (기존 Pure Black).<br>차분한 85% 화이트 + 리얼 블랙 완전 소등(0W)으로 번인/배터리 극대화 |
+| **기타** | **`Custom`** | 사용자 지정 | 사용자 지정 | 자유 튜닝 | `oled-mode custom <블랙%> <화이트%>` 로 즉시 미세조정 |
+| | **`Reset (순정)`** | `0.0%` | `100.0%` | `0` $\rightarrow$ `0`<br>`255` $\rightarrow$ `255` | 팩토리 기본값 복구 (100% 네이티브 광색역 출고 상태) |
 
 ### 🛠️ `oled-mode` CLI 명령어 사용법
 
 ```bash
-# 1. Gentle 모드 적용 (추천: 블랙 +2.0%, 화이트 90%)
-oled-mode gentle
+# --- [화이트 90.0% 라인업 (High)] ---
+# 1. High Contrast 적용 (화이트 90%, 블랙 +2.0% - 눈+전력 균형) [추천]
+oled-mode high
 
-# 2. Medium 모드 적용 (블랙 +4.0%, 화이트 85%)
+# 2. High Pure Black 적용 (화이트 90%, 블랙 0.0% - 선명함 + 배터리 절약)
+oled-mode high-pure
+
+# --- [화이트 85.0% 라인업 (Medium)] ---
+# 3. Medium Contrast 적용 (화이트 85%, 블랙 +4.0% - 눈 편안함 최우선)
 oled-mode medium
 
-# 3. Pure Black 모드 적용 (블랙 0.0%, 화이트 85% - 전력/번인 최우선)
-oled-mode pure
+# 4. Medium Pure Black 적용 (화이트 85%, 블랙 0.0% - 전력/번인 최우선)
+oled-mode medium-pure
 
-# 4. 실시간 커스텀 수치 생성 및 적용 (예: 블랙 1.8%, 화이트 92%)
-oled-mode custom 1.8 92
+# --- [기타 도구] ---
+# 5. 실시간 커스텀 수치 생성 및 적용 (예: 블랙 2.0%, 화이트 92%)
+oled-mode custom 2.0 92
 
-# 5. 현재 적용 중인 컬러 프로파일 및 장치 확인
+# 6. 현재 적용 중인 컬러 프로파일 및 장치 확인
 oled-mode status
 
-# 6. 출고 순정 상태로 즉시 복원 (CTM 초기화 + 공장 EDID 프로파일 적용)
+# 7. 출고 순정 상태로 즉시 복원 (CTM 초기화 + 공장 EDID 프로파일 적용)
 oled-mode reset
 ```
 

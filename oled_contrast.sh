@@ -21,22 +21,26 @@ echo ""
 echo "========================================================="
 echo " [SUCCESS] OLED 다크모드 대비 완화 설정 복원이 완료되었습니다!"
 echo "========================================================="
-echo " 1. 맞춤형 OLED Eye Care ICC 프로파일 설치 완료:"
-echo "    - oled_gentle_contrast.icc: 블랙 +2.0%, 화이트 90.0% (기본 활성화, 밸런스형)"
-echo "    - oled_medium_contrast.icc: 블랙 +4.0%, 화이트 85.0% (눈 편안함 최우선, 스미어링 방지)"
-echo "    - oled_pure_black.icc:      블랙 0.0%,  화이트 85.0% (전력/번인 최우선, 리얼 블랙 소등)"
-echo "    - 위치: ~/.local/share/icc/"
-echo " 2. VCGT (Video Card Gamma Table) 1:1:1 무왜곡 하드웨어 LUT:"
-echo "    - 색 틴트 왜곡(보라/녹색 변색) 0% 완전 보존"
-echo "    - 다크모드 극단적 명암비로 인한 눈부심 및 피로 대폭 감소"
-echo "    - OLED 픽셀 완전 소등 회피로 스미어링(잔상/고스팅) 방지 (Gentle/Medium)"
-echo " 3. CLI 제어 명령어 'oled-mode' 제공:"
-echo "    - oled-mode gentle : 자연스러운 대비 완화 (블랙 +2.0%, 화이트 90%) [추천]"
-echo "    - oled-mode medium : 눈 편안함 최우선 대비 완화 (블랙 +4.0%, 화이트 85%)"
-echo "    - oled-mode pure   : 전력/번인 최우선 리얼블랙 (블랙 0.0%, 화이트 85%)"
-echo "    - oled-mode custom <블랙%> <화이트%> : 자유 튜닝 (예: oled-mode custom 2.0 92)"
-echo "    - oled-mode reset  : 순정 공장 기본값(100% 화이트 / 0% 리얼블랙) 복원"
-echo "    - oled-mode status : 현재 적용된 컬러 프로파일 확인"
+echo " 1. 맞춤형 OLED Eye Care ICC 2x2 프로파일 설치 완료:
+    [화이트 90.0% 라인업 (High)]
+    - oled_high_contrast.icc   : 화이트 90.0%, 블랙 +2.0% (기본 활성화, 눈+전력 균형) [추천]
+    - oled_high_pure_black.icc : 화이트 90.0%, 블랙  0.0% (밝은 가독성 + 다크모드 리얼블랙 완전 소등)
+    [화이트 85.0% 라인업 (Medium)]
+    - oled_medium_contrast.icc   : 화이트 85.0%, 블랙 +4.0% (눈 편안함 최우선, 강한 대비 완화)
+    - oled_medium_pure_black.icc : 화이트 85.0%, 블랙  0.0% (전력/번인 최우선, 리얼블랙 완전 소등)
+    - 위치: ~/.local/share/icc/
+ 2. VCGT (Video Card Gamma Table) 1:1:1 무왜곡 하드웨어 LUT:
+    - 색 틴트 왜곡(보라/녹색 변색) 0% 완전 보존
+    - 다크모드 극단적 명암비로 인한 눈부심 및 피로 대폭 감소
+    - OLED 픽셀 완전 소등 회피로 스미어링(잔상/고스팅) 방지 (High/Medium Contrast)
+ 3. CLI 제어 명령어 'oled-mode' 제공:
+    - oled-mode high        : 화이트 90%, 블랙 +2.0% (균형형) [추천]
+    - oled-mode high-pure   : 화이트 90%, 블랙  0.0% (밝은 가독성 + 배터리 절약)
+    - oled-mode medium      : 화이트 85%, 블랙 +4.0% (눈 편안함 최우선)
+    - oled-mode medium-pure : 화이트 85%, 블랙  0.0% (전력/번인 최우선)
+    - oled-mode custom <블랙%> <화이트%> : 자유 튜닝 (예: oled-mode custom 2.0 90)
+    - oled-mode reset       : 순정 공장 기본값(100% 화이트 / 0% 리얼블랙) 복원
+    - oled-mode status      : 현재 적용된 컬러 프로파일 확인"
 echo "========================================================="
 echo ""
 echo " 🚀 언제든지 순정 상태로 원상 복구하려면 아래 명령을 실행하세요:"
