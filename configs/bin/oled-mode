@@ -154,7 +154,7 @@ def main():
         print("사용법: oled-mode {gentle | medium | custom <블랙%> <화이트%> | reset | status}")
         print("")
         print("  gentle : 블랙 +2.0%, 화이트 90.0% (자연스러움, 틴트 없음, 눈부심 완화) [추천]")
-        print("  medium : 블랙 +2.5%, 화이트 85.0% (더 확실한 다크모드 대비 완화)")
+        print("  medium : 블랙 +4.0%, 화이트 85.0% (더 확실한 다크모드 대비 완화 및 스미어링 방지)")
         print("  custom : 원하는 비율로 즉시 튜닝 (예: oled-mode custom 2.0 90)")
         print("  reset  : 패널 순정 기본값(공장 출하 상태)으로 복원")
         print("  status : 현재 프로파일 확인")
@@ -179,7 +179,7 @@ def main():
             sys.exit(1)
         set_profile(dev_id, prof_id)
         print("✅ [OLED Eye Care] 'Medium Contrast' 적용 완료")
-        print("   - 블랙 리프트: +2.5%")
+        print("   - 블랙 리프트: +4.0% (확실한 대비 완화, 틴트 0%)")
         print("   - 화이트 레벨: 85.0%")
 
     elif cmd == "custom":

@@ -137,7 +137,7 @@ def main():
             src,
             os.path.join(out_dir, "oled_medium_contrast.icc"),
             "OLED Eye Care - Medium Contrast",
-            0.025,
+            0.040,
             0.850
         )
 
