@@ -1,45 +1,38 @@
 # driver_power_patch.sh 설명 문서
 
-이 문서는 **[`driver_power_patch.sh`](./driver_power_patch.sh)** 스크립트가 적용하는 인텔 메테오레이크 차세대 커널 드라이버(`xe`) 전환, 인텔 마이크로코드/써멀 제어, GPU 연산 가속(OpenCL), PCIe ASPM 초절전 정책, 그리고 PowerTOP 자동 튜닝 서비스의 동작 원리와 복원/롤백 방법을 상세히 설명합니다.
+이 문서는 **[`driver_power_patch.sh`](./driver_power_patch.sh)** 스크립트가 적용하는 인텔 메테오레이크 `i915` 드라이버 안정화(Early KMS), 인텔 마이크로코드/써멀 제어, GPU 연산 가속(OpenCL), PCIe ASPM 초절전 정책, 그리고 PowerTOP 자동 튜닝 서비스의 동작 원리와 복원/롤백 방법을 상세히 설명합니다.
 
 ---
 
-## 1. 배경 및 해결하려는 문제
+## 1. 배경 및 드라이버 선정 이유
 
-삼성 갤럭시 북4 프로(Galaxy Book 4 Pro, NT960XGK / Meteor Lake Core Ultra 5 125H)를 리눅스(우분투)에서 순정 상태로 구동할 때 다음과 같은 드라이버 호환성 및 유휴 전력 누수 문제가 발생합니다:
+삼성 갤럭시 북4 프로(Galaxy Book 4 Pro, NT960XGK / Meteor Lake Core Ultra 5 125H, 7d55)에서 안정적인 리눅스 환경과 극대화된 전성비를 달성하기 위해 검증된 **`i915` 드라이버를 기본으로 안정화**하고 유휴 전력 최적화를 적용합니다.
 
-### (1) 레거시 `i915` 드라이버의 한계 및 부팅 레이스 컨디션 (Race Condition)
-* **문제점**:
-  * 인텔 메테오레이크(Intel Arc Xe-LPG 아키텍처)는 타일 기반 칩렛 구조로 하드웨어 설계가 완전히 바뀌었습니다.
-  * 그러나 초기 리눅스 커널 호환성을 위해 20년 전 915G 시절부터 이어져 온 모놀리식 드라이버인 `i915`가 기본값으로 바인딩되어 왔습니다.
-  * 이로 인해 최신 커널 환경에서 부팅 중 ACPI 초기화 타이밍과 그래픽 드라이버 로딩 간의 충돌(Race condition)이 발생하여 부팅 화면에서 멈추거나 정체되는 문제가 잦았습니다.
-  * 또한 패널 셀프 리프레시(PSR) 기능 충돌로 인한 화면 프리징/깜빡임, 메모리 관리자(GEM) 경합 현상이 동반되었습니다.
-* **해결책**:
-  * 메테오레이크 및 이후 세대(Lunar Lake, Battlemage 등)를 위해 커널 DRM의 차세대 드라이버로 새로 작성된 **`xe` 커널 드라이버**로 전환합니다.
-  * `xe` 드라이버는 모던 칩렛 구조에 맞춰 메모리 관리와 타이밍이 완전히 재설계되어 부팅 정체와 PSR 깜빡임 버그가 근본적으로 해결됩니다.
+### (1) 왜 `xe` 대신 `i915`를 선택하는가?
+* **메테오레이크에서 `xe` 드라이버의 치명적 한계**:
+  * 인텔이 `xe` 드라이버를 공식 기본값으로 채택한 것은 루나레이크(Core Ultra 200V) 및 배틀메이지부터이며, **메테오레이크(Core Ultra 1세대)에서 `xe`는 여전히 "실험적(Experimental)" 상태**입니다. (Mesa 라이브러리 실행 시 경고 문구 출력)
+  * 실제로 `xe` 드라이버 구동 시 **GPU TLB Invalidation 타임아웃 오류(`*ERROR* TLB invalidation fence timeout`)**가 빈번하게 발생하여 순간적인 화면 멈칫거림이나 GPU 행(프리징)을 유발합니다.
+  * 또한 노트북 덮개를 닫았다 열 때(Lid open/close) 절전 모드 복귀 과정에서 **MCR 락 획득 실패(`WARNING: xe_gt_mcr.c mcr_lock`)**가 발생하여 화면이 켜지지 않는 위험이 있습니다.
+  * 이러한 버그는 커널 내부 드라이버 코드의 미완성에서 기인하므로 사용자가 설정으로 제어하기 어렵습니다.
+* **`i915`의 검증된 안정성**:
+  * `i915`는 20년간 숙성된 드라이버로 절전 모드(Suspend/Resume), ACPI 전원 전환, 멀티태스킹 렌더링에서 가장 신뢰할 수 있는 공식 프로덕션 드라이버입니다.
 
-### (2) 최신 CPU 마이크로코드 및 써멀 데몬(`thermald`) 부재
-* **문제점**:
-  * 우분투 기본 설치 시 최신 인텔 마이크로코드 패키지(`intel-microcode`)와 하드웨어 온도/스로틀링 제어 데몬(`thermald`)이 누락되거나 구버전 상태로 방치될 수 있습니다.
-  * 최신 메테오레이크 CPUID(`0x000a06a4`)에 대응하는 안정성/보안 마이크로코드와 인텔 DPTF(Dynamic Platform and Thermal Framework) 연동이 없으면 발열 억제 및 코어 부스트 제어가 원활하지 못합니다.
-* **해결책**:
-  * `intel-microcode` 및 `thermald`를 최신으로 설치하고 상시 서비스로 활성화하여 하드웨어 발열 쓰로틀링과 클럭 안정성을 극대화합니다.
+### (2) 과거 `i915`에서 발생했던 문제의 완벽한 해결 (Early KMS)
+* **부팅 레이스 컨디션(정체) 문제**:
+  * 커널 7.0 환경에서 `i915` 드라이버 로딩과 ACPI/하드웨어 초기화 간 타이밍 경합(Race condition)이 발생하여, 부팅 중 ACPI 로그 화면에서 멈추는 현상이 있었습니다.
+  * **해결책**: Dracut 설정(`/etc/dracut.conf.d/i915.conf`)에 `force_drivers+=" i915 "`를 지정하여 **부팅 램디스크(Early KMS) 단계에서 `i915`를 극초기에 선행 로드**합니다. ACPI 모듈보다 먼저 드라이버가 완전히 안착하므로 부팅 정체 문제가 100% 원천 차단됩니다.
+* **스피커 및 디스플레이 연동 보장**:
+  * 깃허브에서 빌드한 SOF 내장 스피커/마이크 드라이버(`snd_sof_intel_hda_common`) 및 OLED 다중 주사율(60Hz~120Hz), sdr-native 광색역 클램핑과 완벽하게 호환됩니다.
 
-### (3) PCIe 링크 ASPM 정책 기본값(`default`)으로 인한 유휴 전력 낭비
-* **문제점**:
-  * 우분투 기본 커널의 PCIe ASPM(Active State Power Management) 정책은 바이오스 설정에 의존하는 `[default]` 상태입니다.
-  * 메테오레이크의 초저전력 C-state(Package C8, C10 등)에 진입하려면 시스템 내부의 모든 PCIe 버스(NVMe SSD, Intel Wi-Fi 등)가 깊은 L1 절전 서브스테이트(L1.1, L1.2)로 내려가야 합니다.
-  * 정책이 `default`인 경우 PCIe 링크가 상위 유휴 상태(L0s 또는 L1.0)에 머물러 패키지 C-state 진입을 방해하고 배터리를 불필요하게 소모합니다.
-* **해결책**:
-  * 커널 파라미터 `pcie_aspm.policy=powersupersave`를 적용하여 모든 PCIe 링크에 공격적인 L1 서브스테이트 절전을 강제합니다.
+### (3) PCIe ASPM 초절전 정책 (`pcie_aspm.policy=powersupersave`)
+* 기본 커널의 ASPM 정책(`default`)은 NVMe SSD나 무선랜 링크가 깊은 L1 절전(L1.1 / L1.2)으로 내려가는 것을 제한합니다.
+* `pcie_aspm.policy=powersupersave`를 적용하여 PCIe 버스 유휴 전력을 최소화하고, CPU 패키지가 최하위 극저전력 유휴 상태인 **`Package C10`**에 원활하게 진입하도록 합니다. (`i915` 드라이버는 `xe`와 달리 깊은 ASPM 절전 상태에서도 TLB 타임아웃 없이 안정적으로 동작합니다.)
 
-### (4) 장치 Runtime PM 미최적화 및 NMI 타이머 인터럽트
-* **문제점**:
-  * Wi-Fi, SPI 컨트롤러, 센서 허브, GNA(신경망 가속기) 등 다양한 내부 버스 장치가 런타임 전원 관리(Runtime PM) `on` 상태로 유지되어 전력을 계속 소모합니다.
-  * 커널 NMI Watchdog 타이머가 1초마다 주기적 인터럽트를 발생시켜 유휴 상태의 CPU 코어를 깨우고 딥 슬립 진입을 방해합니다.
-* **해결책**:
-  * `powertop --auto-tune`을 부팅 시 자동 실행하는 systemd 백그라운드 서비스를 등록하여 모든 장치를 `auto` 절전으로 전환합니다.
-  * `kernel.nmi_watchdog = 0`을 sysctl에 영구 등록하여 불필요한 주기적 인터럽트를 차단합니다.
+### (4) 최신 CPU 마이크로코드, 써멀 데몬, PowerTOP, NMI 절전
+* `intel-microcode` 및 `thermald`: 최신 CPUID(`0x000a06a4`) 보안/안정성 패치 및 하드웨어 스로틀링 완화
+* `intel-opencl-icd`, `clinfo`: Intel Arc Xe-LPG iGPU의 하드웨어 OpenCL 연산 가속 활성화
+* `powertop.service`: 부팅 시 모든 PCI/USB 디바이스의 Runtime PM을 `auto`(자동 절전)로 전환
+* `kernel.nmi_watchdog = 0`: 1초 주기 하드웨어 인터럽트를 제거하여 CPU 코어 슬립 지속 시간 극대화
 
 ---
 
@@ -49,8 +42,8 @@
 
 | 대상 경로 | 설명 | 원본 파일 위치 |
 | :--- | :--- | :--- |
-| `/etc/default/grub` | 커널 부팅 파라미터 (`i915.force_probe=!7d55 xe.force_probe=7d55 pcie_aspm.policy=powersupersave`) | 자동 수정 (백업본 자동 생성) |
-| `/etc/dracut.conf.d/gpu-drivers.conf` | Early KMS 램디스크 빌드 시 `i915` 및 `xe` 모듈 포함 강제 | [`configs/dracut/gpu-drivers.conf`](./configs/dracut/gpu-drivers.conf) |
+| `/etc/default/grub` | 커널 부팅 파라미터 (`pcie_aspm.policy=powersupersave`) | 자동 수정 (백업본 자동 생성) |
+| `/etc/dracut.conf.d/i915.conf` | Early KMS 램디스크에 `i915` 모듈 사전 탑재 강제 | [`configs/dracut/i915.conf`](./configs/dracut/i915.conf) |
 | `/etc/systemd/system/powertop.service` | 부팅 시 모든 버스 장치 Runtime PM 자동 튜닝 실행 서비스 | [`configs/systemd/powertop.service`](./configs/systemd/powertop.service) |
 | `/etc/sysctl.d/99-nmi-watchdog.conf` | CPU 유휴 수면 방해 인터럽트 차단 (`kernel.nmi_watchdog = 0`) | [`configs/sysctl/99-nmi-watchdog.conf`](./configs/sysctl/99-nmi-watchdog.conf) |
 
@@ -65,42 +58,32 @@
 
 ## 3. 주요 파라미터 및 동작 원리
 
-### (1) 차세대 `xe` 그래픽 드라이버 전환 메커니즘
-* **디바이스 ID 바인딩 분리**:
-  * 메테오레이크-P 내장 그래픽(Intel Arc Graphics)의 PCI 디바이스 ID는 `8086:7d55`입니다.
-  * `i915.force_probe=!7d55`: 레거시 `i915` 드라이버가 이 장치를 프로빙하지 못하도록 강제 차단합니다.
-  * `xe.force_probe=7d55`: 차세대 `xe` 드라이버가 해당 디바이스를 독점 바인딩하여 초기화하도록 지시합니다.
-* **Early KMS (Kernel Mode Setting) 통합**:
-  * 부팅 극초기에 드라이버가 교체되는 과정에서 블랙아웃이나 레이스 컨디션이 발생하는 것을 막기 위해, `dracut` 설정(`force_drivers+=" i915 xe "`)을 통해 부팅 램디스크(initramfs) 내부에 `xe.ko` 모듈을 사전 탑재합니다.
-* **사운드 및 디스플레이 연동 보장**:
-  * 노트북 내장 스피커 드라이버(`snd_sof_intel_hda_common`)는 디스플레이 오디오 링크를 통해 그래픽 드라이버에 악수(Handshake)합니다.
-  * 커널 6.8+ 및 7.0에서 `intel_audio_component_bind_ops`가 `xe` 드라이버를 기본 지원하므로, 오디오 및 내장 마이크가 끊김 없이 완벽하게 작동합니다.
-  * 고정 픽셀 클럭 기반의 커스텀 EDID(다중 주사율 60Hz~120Hz) 및 sdr-native 클램핑과도 100% 호환됩니다.
+### (1) Early KMS `i915` 로딩 메커니즘 (`scripts/fix-i915-race-condition.sh`)
+* **설정 파일**: `/etc/dracut.conf.d/i915.conf` (`force_drivers+=" i915 "`)
+* **전용 스크립트**: [`scripts/fix-i915-race-condition.sh`](./scripts/fix-i915-race-condition.sh) (독립 실행 가능)
+* **동작 원리**:
+  * 리눅스 부팅 시 커널이 initramfs 램디스크를 풀 때 `i915.ko`를 즉시 메모리에 로드합니다.
+  * ACPI 인터럽트 서브시스템 및 사운드/입력 디바이스 드라이버가 초기화되기 전에 디스플레이 파이프라인이 안전하게 기동되므로, 커널 7.0에서 발생하던 초기화 경합(Race Condition)이 완전히 차단됩니다.
 
 ### (2) PCIe ASPM `powersupersave` 초절전 정책
-* **ASPM 링크 계층 상태**:
-  * `L0`: 활성 전송 상태
-  * `L0s`: 초단기 유휴 상태 (복귀 시간 수 마이크로초)
-  * `L1 / L1.1 / L1.2`: 깊은 링크 비활성화 상태 (클럭 정지 및 전압 강하, 전력 소모 90%+ 절감)
-* **`pcie_aspm.policy=powersupersave`**:
-  * PCIe 장치가 바이오스 화이트리스트에 명시적으로 등록되어 있지 않더라도, 하드웨어 레벨에서 지원 가능한 가장 깊은 L1.2 서브스테이트로 진입하도록 커널이 강제합니다.
-  * 메테오레이크 SoC의 전력 관리 유닛(PMC)이 전체 패키지 유휴 상태를 인지하여 최하위 초저전력 상태인 **`Package C10`**에 도달할 수 있는 핵심 전제 조건을 완성합니다.
+* **커널 파라미터**: `pcie_aspm.policy=powersupersave`
+* **동작 원리**:
+  * 모든 PCIe 링크가 하드웨어적으로 지원 가능한 가장 깊은 L1.2 서브스테이트로 진입하도록 강제합니다.
+  * NVMe SSD 및 Wi-Fi의 유휴 소비 전력이 급감하며, CPU SoC 전력 관리 유닛(PMC)이 전체 패키지 유휴 상태를 인지하여 **`Package C10`** 진입률이 극대화됩니다.
 
 ### (3) PowerTOP Auto-Tune 서비스 (`powertop.service`)
 * 부팅 시 `multi-user.target` 이후 1회 실행(`Type=oneshot`)되어 시스템 내의 모든 PCI/USB 디바이스 제어 디렉토리(`/sys/bus/pci/devices/*/power/control` 등)의 설정을 `auto`로 변경합니다.
-* 장치가 데이터 I/O를 수행하지 않을 때 즉시 D3hot / D3cold 슬립 상태로 전환되어 배터리 소모를 즉각적으로 억제합니다.
+* 장치가 데이터 I/O를 수행하지 않을 때 즉시 D3hot / D3cold 슬립 상태로 전환됩니다.
 
 ### (4) NMI Watchdog 비활성화 (`kernel.nmi_watchdog = 0`)
-* NMI(Non-Maskable Interrupt) Watchdog은 커널 데드락을 감지하기 위해 주기적으로 하드웨어 인터럽트를 발생시킵니다.
-* 일반 랩탑 환경에서는 시스템 락업 감지 실효성보다 매초 발생하는 인터럽트로 인해 CPU 코어가 유휴 C-state에서 강제로 깨어나는 배터리 손실이 더 큽니다.
-* 이를 0으로 비활성화하여 코어가 온전하게 C-state 수면을 유지할 수 있도록 합니다.
+* 매초 발생하는 하드웨어 감시 인터럽트를 비활성화하여 유휴 코어가 강제로 깨어나는 것을 방지하고 딥 슬립 상태를 지속시킵니다.
 
 ---
 
 ## 4. 사전 요구사항 및 의존성
 
 * **지원 하드웨어**: 삼성 갤럭시 북4 프로 (Intel Core Ultra 5 125H / Core Ultra 7 155H 등 Meteor Lake 계열)
-* **지원 운영체제**: Ubuntu 24.04 LTS / Ubuntu 26.04 LTS (Linux Kernel 6.8+ 이상 권장, 7.0 커널 완벽 지원)
+* **지원 운영체제**: Ubuntu 24.04 LTS / Ubuntu 26.04 LTS (Linux Kernel 6.8+, 7.0 커널 완벽 지원)
 * **필수 도구**:
   * `apt-get` 패키지 관리자
   * `dracut` 또는 `initramfs-tools`
@@ -113,18 +96,17 @@
 
 ### (1) 정상 적용 확인 방법 (적용 및 재부팅 후)
 
-1. **`xe` 그래픽 드라이버 활성화 확인**:
+1. **`i915` 그래픽 드라이버 활성화 확인**:
    ```bash
    lspci -k -s 00:02.0
-   # 출력 결과: Kernel driver in use: xe
-   lsmod | grep -E "^xe|^i915"
-   # xe 모듈이 높은 카운트로 사용 중이며, i915는 언로드 또는 0 사용
+   # 출력 결과: Kernel driver in use: i915
+   lsmod | grep i915
    ```
 
-2. **오디오 드라이버와 xe 바인딩 확인**:
+2. **PCIe ASPM 절전 정책 확인**:
    ```bash
-   journalctl -k -b | grep -i "bound 0000:00:02.0"
-   # 출력 결과: bound 0000:00:02.0 (ops intel_audio_component_bind_ops [xe])
+   cat /sys/module/pcie_aspm/parameters/policy
+   # 출력 결과: default performance powersave [powersupersave]
    ```
 
 3. **GPU OpenCL 연산 장치 확인**:
@@ -133,18 +115,12 @@
    # 출력 결과: Platform #0: Intel(R) OpenCL Graphics / Device #0: Intel(R) Arc(TM) Graphics
    ```
 
-4. **PCIe ASPM 절전 정책 확인**:
-   ```bash
-   cat /sys/module/pcie_aspm/parameters/policy
-   # 출력 결과: default performance powersave [powersupersave]
-   ```
-
-5. **PowerTOP 및 thermald 서비스 상태 확인**:
+4. **PowerTOP 및 thermald 서비스 상태 확인**:
    ```bash
    systemctl status powertop.service thermald.service
    ```
 
-6. **NMI Watchdog 비활성화 확인**:
+5. **NMI Watchdog 비활성화 확인**:
    ```bash
    cat /proc/sys/kernel/nmi_watchdog
    # 출력 결과: 0
@@ -152,18 +128,17 @@
 
 ---
 
-### (2) 원클릭 롤백 (순정 i915 드라이버 및 기본 설정 복구)
+### (2) 원클릭 롤백 (순정 출고 상태 복구)
 
-언제든지 패치를 제거하고 우분투 순정 출고 상태로 되돌릴 수 있습니다:
+언제든지 패치를 제거하고 우분투 기본 출고 상태로 되돌릴 수 있습니다:
 
 ```bash
 sudo ./driver_power_patch.sh --restore
 ```
 
 **롤백 스크립트(`restore-driver-power-patch.sh`)가 수행하는 작업**:
-1. `/etc/default/grub`에서 `i915.force_probe=!7d55`, `xe.force_probe=7d55`, `pcie_aspm.policy=powersupersave` 파라미터 완전 제거 후 `update-grub` 실행
-2. `/etc/dracut.conf.d/gpu-drivers.conf` 파일 제거 및 램디스크(`dracut` / `update-initramfs`) 재생성
+1. `/etc/default/grub`에서 `pcie_aspm.policy=powersupersave` 및 잔존 xe 파라미터 완전 제거 후 `update-grub` 실행
+2. `/etc/dracut.conf.d/i915.conf` 파일 제거 및 램디스크(`dracut` / `update-initramfs`) 재생성
 3. `powertop.service` 중지, 비활성화 및 `/etc/systemd/system/powertop.service` 파일 삭제
 4. `/etc/sysctl.d/99-nmi-watchdog.conf` 삭제 및 `kernel.nmi_watchdog = 1` 기본값 복구
 5. 런타임 PCIe ASPM 정책을 `default`로 복원
-6. 작업 완료 후 재부팅(`sudo reboot`)하면 순정 `i915` 드라이버와 기본 절전 설정으로 안전하게 복원됩니다.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# setup-driver-power-patch.sh - Galaxy Book 4 Pro 차세대 드라이버 & 전력 최적화
+# setup-driver-power-patch.sh - Galaxy Book 4 Pro 안정화 드라이버 & 전력 최적화
 # ==============================================================================
 
 set -euo pipefail
@@ -38,75 +38,49 @@ systemctl enable --now thermald
 echo "[+] thermald 서비스 활성화 완료."
 echo ""
 
-echo "=== [2/5] 부팅 램디스크(Dracut/initramfs) GPU 드라이버 패키징 ==="
-DRACUT_CONFIGURED=false
-INITRAMFS_CONFIGURED=false
-
-if command -v dracut &>/dev/null && [ -d /etc/dracut.conf.d ]; then
-    echo "-> Dracut 환경 감지: /etc/dracut.conf.d/gpu-drivers.conf 복원..."
-    mkdir -p /etc/dracut.conf.d
-    cp "${PROJECT_ROOT}/configs/dracut/gpu-drivers.conf" /etc/dracut.conf.d/gpu-drivers.conf
-    chmod 644 /etc/dracut.conf.d/gpu-drivers.conf
-    # 이전 잔존 설정 정리
-    if [ -f /etc/dracut.conf.d/i915.conf ]; then
-        rm -f /etc/dracut.conf.d/i915.conf
-    fi
-    DRACUT_CONFIGURED=true
-fi
-
-if [ -d /etc/initramfs-tools/modules ] || command -v update-initramfs &>/dev/null; then
-    if [ -f /etc/initramfs-tools/modules ]; then
-        echo "-> initramfs-tools 모듈 설정 확인..."
-        for mod in i915 xe; do
-            if ! grep -q "^$mod" /etc/initramfs-tools/modules; then
-                echo "$mod" >> /etc/initramfs-tools/modules
-                echo "[+] /etc/initramfs-tools/modules 에 $mod 추가."
-            fi
-        done
-        INITRAMFS_CONFIGURED=true
-    fi
-fi
-
-KERNEL_VER="$(uname -r)"
-if [ "$DRACUT_CONFIGURED" = true ]; then
-    echo "-> Dracut을 통해 부팅 램디스크 갱신 중 (i915 & xe 드라이버 탑재)..."
-    dracut -f "/boot/initrd.img-$KERNEL_VER" "$KERNEL_VER"
-    echo "[+] Dracut 램디스크 갱신 완료."
-elif [ "$INITRAMFS_CONFIGURED" = true ]; then
-    echo "-> update-initramfs를 통해 부팅 램디스크 갱신 중..."
-    update-initramfs -u
-    echo "[+] initramfs 갱신 완료."
-fi
+echo "=== [2/5] i915 Early KMS 부팅 레이스 컨디션 해결 스크립트 실행 ==="
+bash "${SCRIPT_DIR}/fix-i915-race-condition.sh"
 echo ""
 
-echo "=== [3/5] GRUB 부트로더 커널 파라미터 등록 ==="
+echo "=== [3/5] GRUB 부트로더 커널 파라미터 최적화 ==="
 GRUB_DEFAULT_FILE="/etc/default/grub"
-GRUB_PARAMS=(
-    "i915.force_probe=!7d55"
-    "xe.force_probe=7d55"
-    "pcie_aspm.policy=powersupersave"
-)
 
 if [ -f "$GRUB_DEFAULT_FILE" ]; then
     GRUB_CHANGED=false
-    for param in "${GRUB_PARAMS[@]}"; do
-        if ! grep -q "$param" "$GRUB_DEFAULT_FILE"; then
+
+    # 1) xe 드라이버 강제 프로빙 잔존 파라미터가 있다면 제거 (i915 안정성 복원)
+    for stale_param in "i915.force_probe=!7d55" "xe.force_probe=7d55"; do
+        if grep -q "$stale_param" "$GRUB_DEFAULT_FILE"; then
             if [ "$GRUB_CHANGED" = false ]; then
                 BACKUP_FILE="${GRUB_DEFAULT_FILE}.bak.$(date +%Y%m%d%H%M%S)"
                 cp "$GRUB_DEFAULT_FILE" "$BACKUP_FILE"
                 echo "[+] 기존 GRUB 백업 파일 생성: $BACKUP_FILE"
                 GRUB_CHANGED=true
             fi
-            echo "-> GRUB 파라미터 추가: $param"
-            if grep -q "GRUB_CMDLINE_LINUX_DEFAULT=" "$GRUB_DEFAULT_FILE"; then
-                sed -i "s/GRUB_CMDLINE_LINUX_DEFAULT=\"\(.*\)\"/GRUB_CMDLINE_LINUX_DEFAULT=\"\1 $param\"/" "$GRUB_DEFAULT_FILE"
-            else
-                echo "GRUB_CMDLINE_LINUX_DEFAULT=\"$param\"" >> "$GRUB_DEFAULT_FILE"
-            fi
-        else
-            echo "[+] GRUB 파라미터 이미 등록됨: $param"
+            echo "-> xe 잔존 파라미터 제거: $stale_param"
+            sed -i "s| $stale_param||g" "$GRUB_DEFAULT_FILE"
+            sed -i "s|$stale_param||g" "$GRUB_DEFAULT_FILE"
         fi
     done
+
+    # 2) PCIe ASPM 초절전 파라미터 등록
+    ASPM_PARAM="pcie_aspm.policy=powersupersave"
+    if ! grep -q "$ASPM_PARAM" "$GRUB_DEFAULT_FILE"; then
+        if [ "$GRUB_CHANGED" = false ]; then
+            BACKUP_FILE="${GRUB_DEFAULT_FILE}.bak.$(date +%Y%m%d%H%M%S)"
+            cp "$GRUB_DEFAULT_FILE" "$BACKUP_FILE"
+            echo "[+] 기존 GRUB 백업 파일 생성: $BACKUP_FILE"
+            GRUB_CHANGED=true
+        fi
+        echo "-> GRUB 파라미터 추가: $ASPM_PARAM"
+        if grep -q "GRUB_CMDLINE_LINUX_DEFAULT=" "$GRUB_DEFAULT_FILE"; then
+            sed -i "s/GRUB_CMDLINE_LINUX_DEFAULT=\"\(.*\)\"/GRUB_CMDLINE_LINUX_DEFAULT=\"\1 $ASPM_PARAM\"/" "$GRUB_DEFAULT_FILE"
+        else
+            echo "GRUB_CMDLINE_LINUX_DEFAULT=\"$ASPM_PARAM\"" >> "$GRUB_DEFAULT_FILE"
+        fi
+    else
+        echo "[+] GRUB 파라미터 이미 등록됨: $ASPM_PARAM"
+    fi
 
     if [ "$GRUB_CHANGED" = true ]; then
         sed -i 's/  */ /g' "$GRUB_DEFAULT_FILE"
@@ -162,4 +136,4 @@ if [ -w /sys/module/pcie_aspm/parameters/policy ]; then
 fi
 echo ""
 
-echo "[SUCCESS] 드라이버 패치 및 전력 최적화 설정이 성공적으로 완료되었습니다!"
+echo "[SUCCESS] i915 기반 드라이버 안정화 및 전력 최적화 설정이 성공적으로 완료되었습니다!"

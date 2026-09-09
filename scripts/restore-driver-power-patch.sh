@@ -18,9 +18,9 @@ fi
 # 2. GRUB 부트로더 커널 파라미터 복구
 GRUB_DEFAULT_FILE="/etc/default/grub"
 GRUB_PARAMS=(
+    "pcie_aspm.policy=powersupersave"
     "i915.force_probe=!7d55"
     "xe.force_probe=7d55"
-    "pcie_aspm.policy=powersupersave"
 )
 
 if [ -f "$GRUB_DEFAULT_FILE" ]; then
@@ -58,14 +58,14 @@ echo ""
 echo "-> 부팅 램디스크 드라이버 설정 정리..."
 RAMDISK_NEED_UPDATE=false
 
-if [ -f /etc/dracut.conf.d/gpu-drivers.conf ]; then
-    rm -f /etc/dracut.conf.d/gpu-drivers.conf
-    echo "[+] 삭제 완료: /etc/dracut.conf.d/gpu-drivers.conf"
-    RAMDISK_NEED_UPDATE=true
-fi
 if [ -f /etc/dracut.conf.d/i915.conf ]; then
     rm -f /etc/dracut.conf.d/i915.conf
     echo "[+] 삭제 완료: /etc/dracut.conf.d/i915.conf"
+    RAMDISK_NEED_UPDATE=true
+fi
+if [ -f /etc/dracut.conf.d/gpu-drivers.conf ]; then
+    rm -f /etc/dracut.conf.d/gpu-drivers.conf
+    echo "[+] 삭제 완료: /etc/dracut.conf.d/gpu-drivers.conf"
     RAMDISK_NEED_UPDATE=true
 fi
 
@@ -101,10 +101,6 @@ if [ -f /etc/sysctl.d/99-nmi-watchdog.conf ]; then
     rm -f /etc/sysctl.d/99-nmi-watchdog.conf
     echo "[+] 삭제 완료: /etc/sysctl.d/99-nmi-watchdog.conf"
 fi
-if [ -f /etc/sysctl.d/99-power-saving.conf ]; then
-    rm -f /etc/sysctl.d/99-power-saving.conf
-    echo "[+] 삭제 완료: /etc/sysctl.d/99-power-saving.conf"
-fi
 sysctl -w kernel.nmi_watchdog=1 >/dev/null 2>&1 || true
 echo "[+] kernel.nmi_watchdog = 1 (기본값) 복구."
 echo ""
@@ -118,6 +114,6 @@ echo ""
 
 echo "======================================================================"
 echo " [SUCCESS] 드라이버 및 전력 최적화 순정 롤백이 완료되었습니다!"
-echo " 재부팅 시 순정 i915 드라이버 및 기본 절전 정책으로 동작합니다:"
+echo " 재부팅 시 기본 설정으로 동작합니다:"
 echo "     sudo reboot"
 echo "======================================================================"

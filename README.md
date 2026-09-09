@@ -46,7 +46,7 @@ chmod +x *.sh scripts/*.sh
 ```bash
 ./driver_power_patch.sh
 ```
-> 인텔 차세대 그래픽 드라이버(`xe`) 전환, 마이크로코드/thermald, GPU 연산 가속(OpenCL), PCIe ASPM 초절전(`powersupersave`), PowerTOP 자동 튜닝 서비스를 복원합니다. (순정 복구: `sudo ./driver_power_patch.sh --restore`)
+> 검증된 인텔 i915 그래픽 드라이버 안정화(Early KMS), 마이크로코드/thermald, GPU 연산 가속(OpenCL), PCIe ASPM 초절전(`powersupersave`), PowerTOP 자동 튜닝 서비스를 복원합니다. (순정 복구: `sudo ./driver_power_patch.sh --restore`)
 
 ---
 
@@ -205,14 +205,16 @@ OLED 패널에서 다크모드 사용 시 발생하는 극단적인 명암비(�
 
 ## driver_power_patch (드라이버 패치 & 전력 최적화 상세)
 
-인텔 메테오레이크(Meteor Lake Core Ultra 5 125H)의 차세대 하드웨어 아키텍처에 맞춰 구형 `i915` 드라이버를 최신 `xe` 드라이버로 전환하고, 유휴 전력 누수를 차단하여 배터리 효율과 시스템 안정성을 극대화한 설정들입니다.
+인텔 메테오레이크(Meteor Lake Core Ultra 5 125H)에서 실험적 `xe` 드라이버의 버그(GPU TLB 타임아웃, 절전 복귀 락 실패)를 원천 차단하고, 검증된 `i915` 드라이버를 **Early KMS**로 안정화하며, 시스템 유휴 전력 누수를 차단하여 배터리 효율과 시스템 안정성을 극대화한 설정들입니다.
 
-### 1. 차세대 Intel Xe 그래픽 드라이버 전환 (`xe`)
-* **배경 및 원인**: 메테오레이크의 타일(칩렛) 아키텍처에 20년 전 설계된 구형 `i915` 드라이버를 바인딩하면 부팅 중 ACPI 타이밍 충돌(Race Condition)로 멈추거나, PSR(패널 셀프 리프레시) 충돌로 화면 프리징/깜빡임이 발생합니다.
+### 1. 검증된 인텔 i915 그래픽 드라이버 안정화 (Early KMS)
+* **배경 및 원인**:
+  * 메테오레이크에서 `xe` 드라이버는 아직 실험적(Experimental) 단계로, GPU TLB 캐시 타임아웃(`*ERROR* TLB invalidation fence timeout`)으로 인한 순간 멈춤 및 절전 복귀 시 MCR 락 획득 실패 문제가 상존합니다.
+  * 반면 공식 프로덕션 드라이버인 `i915`는 매우 안정적이나, 커널 7.0에서 ACPI 초기화와 그래픽 드라이버 로딩 간 타이밍 경합(Race Condition)으로 부팅 중 멈추는 문제가 발생할 수 있습니다.
 * **해결책**:
-  * 메테오레이크-P iGPU(PCI ID `8086:7d55`)에 최신 **`xe` 드라이버**를 독점 바인딩 (`i915.force_probe=!7d55 xe.force_probe=7d55`)
-  * Early KMS 부팅 램디스크(dracut)에 `xe` 모듈을 사전 포함하여 부팅 글리치 원천 차단
-  * 노트북 내장 스피커(`snd_sof_intel_hda_common`) 및 OLED 다중 주사율/sdr-native 클램핑과 완벽 호환 보장
+  * Dracut 부팅 램디스크에 `force_drivers+=" i915 "`를 지정하여 **부팅 극초기(Early KMS)에 i915를 선행 로드**
+  * ACPI 모듈 로딩 전 디스플레이 파이프라인을 완전히 안착시켜 부팅 정체 문제를 원천 해결
+  * 깃허브 빌드 SOF 내장 스피커/마이크 및 OLED 다중 주사율/sdr-native 클램핑과 100% 호환 유지
 
 ### 2. 인텔 CPU 마이크로코드 최신 패치 & 써멀 관리 (`thermald`)
 * **`intel-microcode`**: 메테오레이크 CPUID(`0x000a06a4`) 보안 및 전력 제어 마이크로코드 최신 펌웨어 적용
@@ -220,11 +222,11 @@ OLED 패널에서 다크모드 사용 시 발생하는 극단적인 명암비(�
 
 ### 3. GPU 하드웨어 연산 가속 (OpenCL Compute Runtime)
 * **패키지**: `intel-opencl-icd`, `clinfo`
-* **효과**: Intel Arc Xe-LPG 그래픽 코어의 병렬 연산(GPGPU)을 활성화하여 딥러닝, 미디어 인코딩 및 이미지 처리 가속
+* **효과**: `i915` 기반 Intel Arc Xe-LPG 그래픽 코어의 병렬 연산(GPGPU)을 활성화하여 딥러닝, 미디어 인코딩 및 이미지 처리 가속
 
 ### 4. PCIe ASPM 초절전 정책 (`pcie_aspm.policy=powersupersave`)
 * **목적**: NVMe SSD, 무선랜 등 시스템 내 모든 PCIe 버스가 가장 깊은 절전 서브스테이트(L1.1 / L1.2)로 강제 진입하도록 커널 정책 지정
-* **효과**: 버스 유휴 전력을 최소화하여 CPU 패키지가 최하위 극저전력 유휴 상태인 **`Package C10`**에 원활하게 진입하도록 유도 (배터리 사용 시간 대폭 향상)
+* **효과**: 버스 유휴 전력을 최소화하여 CPU 패키지가 최하위 극저전력 유휴 상태인 **`Package C10`**에 원활하게 진입하도록 유도 (배터리 사용 시간 대폭 향상, `i915` 환경에서는 타임아웃 없이 안정 동작)
 
 ### 5. PowerTOP Auto-Tune 백그라운드 서비스 (`powertop.service`)
 * **설정 파일**: `/etc/systemd/system/powertop.service`
@@ -263,7 +265,7 @@ GB4P_ubuntu_my_preferences/
 │   │   └── oled_medium_pure_black.icc  # 화이트 85.0%, 블랙  0.0% VCGT (전력/번인 최우선)
 │   ├── dracut/
 │   │   ├── edid.conf              # Dracut 램디스크 펌웨어 패키징 설정
-│   │   └── gpu-drivers.conf       # Dracut i915/xe 램디스크 드라이버 설정
+│   │   └── i915.conf              # Dracut i915 Early KMS 램디스크 드라이버 설정
 │   ├── initramfs-tools/
 │   │   └── edid                   # initramfs-tools 램디스크 펌웨어 훅
 │   ├── sysctl/
@@ -302,6 +304,7 @@ GB4P_ubuntu_my_preferences/
 │   └── keyd/
 │       └── default.conf              # Alt_R/Ctrl_R -> 한영/한자 키 매핑
 ├── scripts/
+│   ├── fix-i915-race-condition.sh    # i915 Early KMS 부팅 레이스 컨디션 해결 스크립트
 │   ├── setup-driver-power-patch.sh   # 드라이버 & 전력 최적화 복원 서브 스크립트
 │   ├── restore-driver-power-patch.sh # 드라이버 & 전력 최적화 순정 롤백 스크립트
 │   ├── setup-display-edid.sh         # 디스플레이 EDID & 램디스크/GRUB 설정
