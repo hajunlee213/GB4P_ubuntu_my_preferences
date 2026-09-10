@@ -40,7 +40,7 @@ chmod +x *.sh scripts/*.sh
 ```bash
 ./oled_contrast.sh
 ```
-> OLED 다크모드의 극단적 명암비로 인한 눈부심을 줄이고, 리얼 블랙(0x000000) 픽셀 소등 지연 잔상(블랙 스미어링)을 완화하는 맞춤형 ICC 프로파일 4종(High/Medium x Contrast/PureBlack)과 CLI 제어 도구(`oled-mode`)를 복원합니다. (순정 복구: `./oled_contrast.sh --restore`)
+> OLED 다크모드의 극단적 명암비로 인한 눈부심을 줄이고, 리얼 블랙(0x000000) 픽셀 소등 지연 잔상(블랙 스미어링)을 완화하는 맞춤형 ICC 프로파일 5종(High/Medium/Low x Contrast/PureBlack)과 CLI 제어 도구(`oled-mode`)를 복원합니다. (순정 복구: `./oled_contrast.sh --restore`)
 
 ### 6. 드라이버 패치 & 전력 최적화 복원 (`driver_power_patch.sh`)
 ```bash
@@ -178,7 +178,7 @@ OLED 패널에서 다크모드 사용 시 발생하는 극단적인 명암비(�
 * **문제점**: CTM(Color Transform Matrix)이나 단순 감마 변경 방식은 패널의 DCI-P3 광색역 및 비선형 감마 특성과 충돌하여 무채색(회색조)이 보라색이나 녹색으로 물드는 색 왜곡(Color Tint)이 발생합니다.
 * **해결책**: 원본 EDID의 색상 보정 정보는 100% 보존한 채, **GPU 하드웨어 LUT에 직접 적용되는 16비트 VCGT(Video Card Gamma Table)**에 R, G, B 채널이 1:1:1로 완벽히 동일한 선형 톤 램프($y = \text{black\_offset} + (\text{white\_max} - \text{black\_offset}) \times x$)를 주입하여 틴트 왜곡 없이 정직한 대비 압축을 구현했습니다.
 
-### 2. 제공 프로파일 사양 (2x2 매트릭스)
+### 2. 제공 프로파일 사양 (5종 라인업)
 * **`High Contrast` (추천/기본)**:
   * **화이트 레벨**: **`90.0%`** (8비트 기준 `230/255`, 글자 가독성은 또렷하게 유지하며 찌르는 눈부심 완화)
   * **블랙 리프트**: **`+2.0%`** (8비트 기준 `5/255`, 픽셀 완전 소등을 방지하여 블랙 스미어링 억제 및 대비 완화)
@@ -191,12 +191,16 @@ OLED 패널에서 다크모드 사용 시 발생하는 극단적인 명암비(�
 * **`Medium Pure Black` (전력/번인 최우선)**:
   * **화이트 레벨**: **`85.0%`** (8비트 기준 `217/255`, 차분한 화이트 밝기)
   * **블랙 레벨**: **`0.0%`** (8비트 기준 `0/255`, OLED 픽셀 완전 소등으로 다크모드 배터리 절약 & 번인 방지 극대화)
+* **`Low Pure Black` (야간/암실 눈부심 극소화)**:
+  * **화이트 레벨**: **`75.0%`** (8비트 기준 `191/255`, 극저조도/야간 환경에서 눈부심 극소화)
+  * **블랙 레벨**: **`0.0%`** (8비트 기준 `0/255`, OLED 픽셀 완전 소등으로 배터리 절약 & 번인 방지)
 
 ### 3. CLI 제어 도구 (`oled-mode`)
 * `oled-mode high`        : High Contrast 적용 (화이트 90%, 블랙 +2.0%) [추천]
 * `oled-mode high-pure`   : High Pure Black 적용 (화이트 90%, 블랙 0.0%)
 * `oled-mode medium`      : Medium Contrast 적용 (화이트 85%, 블랙 +4.0%)
 * `oled-mode medium-pure` : Medium Pure Black 적용 (화이트 85%, 블랙 0.0% - 전력/번인 최우선)
+* `oled-mode low-pure`    : Low Pure Black 적용 (화이트 75%, 블랙 0.0% - 야간/암실 최적)
 * `oled-mode custom <블랙%> <화이트%>` : 원하는 비율로 실시간 ICC 생성 및 적용 (예: `oled-mode custom 2.0 90`)
 * `oled-mode status` : 현재 활성 디스플레이 프로파일 확인
 * `oled-mode reset` : CTM 초기화 및 패널 순정 공장 출하 상태로 즉시 복원
@@ -262,7 +266,8 @@ GB4P_ubuntu_my_preferences/
 │   │   ├── oled_high_contrast.icc      # 화이트 90.0%, 블랙 +2.0% VCGT (균형형)
 │   │   ├── oled_high_pure_black.icc    # 화이트 90.0%, 블랙  0.0% VCGT (밝은 화이트 + 리얼블랙)
 │   │   ├── oled_medium_contrast.icc    # 화이트 85.0%, 블랙 +4.0% VCGT (눈 편안함 최우선)
-│   │   └── oled_medium_pure_black.icc  # 화이트 85.0%, 블랙  0.0% VCGT (전력/번인 최우선)
+│   │   ├── oled_medium_pure_black.icc  # 화이트 85.0%, 블랙  0.0% VCGT (전력/번인 최우선)
+│   │   └── oled_low_pure_black.icc     # 화이트 75.0%, 블랙  0.0% VCGT (야간/암실 최적)
 │   ├── dracut/
 │   │   ├── edid.conf              # Dracut 램디스크 펌웨어 패키징 설정
 │   │   └── i915.conf              # Dracut i915 Early KMS 램디스크 드라이버 설정
