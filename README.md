@@ -54,7 +54,7 @@ chmod +x *.sh scripts/*.sh
 
 인텔 메테오레이크(Meteor Lake Core Ultra 5 125H 등)의 높은 유휴/부하 전력 소모와 피크 발열(90°C+ 쓰로틀링)을 해결하기 위해 최적화된 설정들입니다.
 
-### 1. CPU 하이브리드 아키텍처 토폴로지 최적화 (2P + 4E + 2LP-E 총 8코어 체제)
+### 1. CPU 하이브리드 아키텍처 토폴로지 최적화 (2P + 4E 총 6코어 체제, 와일드캣 레이크 구성)
 * **P-core HT (하이퍼스레딩) 차단**:
   * CPU 2, 4, 5, 7번 비활성화 (순수 물리 P-core만 가동하여 스레드 경합/누수 차단)
 * **P-core 2 (CPU 3) 및 P-core 3 (CPU 6) 차단 (완벽한 Dark Silicon 격리 완충구역)**:
@@ -65,7 +65,9 @@ chmod +x *.sh scripts/*.sh
 * **E-core 다이 위치 기반 클러스터 분리 최적화**:
   * **Cluster 0 (CPU 8~11)**: P코어와 다이상 인접해 있어 열 집중을 유발하므로 **비활성화(OFF)**
   * **Cluster 1 (CPU 12~15)**: 다이 외곽에 위치하여 방열에 유리하므로 **활성화(ON)** 유지
-* **LP-E Core (CPU 16, 17)**: 저전력 아일랜드 코어로 기본 활성화 유지
+* **LP-E Core (CPU 16, 17) 차단 (Compute 타일 단일화 & 크로스 타일 오버헤드 차단)**:
+  * 리눅스 환경에서 LP-E는 작업 배분을 거의 못 받으면서(99% 이상 C10 유휴), 다른 코어들의 메모리 변경에 따른 TLB shootdown과 IPI 신호로 헛바퀴만 도는 문제 차단
+  * SoC 타일과 Compute 타일 간 패브릭 인터커넥트 통신 비용 및 캐시 스눕 전력 낭비를 완전히 제거하고, 모든 활성 코어(2P+4E)를 18MB L3를 공유하는 **Compute 타일 내부로 단일화**
 * **복원 경로**: `~/.local/bin/disable-ht.sh`, `~/.config/autostart/disable-ht.desktop`
 
 ### 2. SSD I/O 깨움 주기 지연 (VM Dirty Writeback 최적화)

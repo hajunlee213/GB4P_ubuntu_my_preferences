@@ -44,6 +44,7 @@ fi
 # - P코어 HT (CPU 2, 4, 5, 7) 및 P코어 (CPU 3, 6, Dark Silicon 완충존): OFF 유지 (2P 체제)
 # - E코어 Cluster 0 (CPU 8~11, P코어 인접): 발열 분산을 위해 항상 OFF
 # - E코어 Cluster 1 (CPU 12~15, 다이 외곽): 항상 ON
+# - LP-E 코어 (CPU 16, 17, SoC 타일): 인터커넥트 오버헤드 차단을 위해 항상 OFF
 # ------------------------------------------------------------------------------
 for c in 2 3 4 5 6 7; do
     echo 0 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null
@@ -53,6 +54,9 @@ for c in 8 9 10 11; do
 done
 for c in 12 13 14 15; do
     echo 1 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null
+done
+for c in 16 17; do
+    echo 0 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null
 done
 
 # ------------------------------------------------------------------------------

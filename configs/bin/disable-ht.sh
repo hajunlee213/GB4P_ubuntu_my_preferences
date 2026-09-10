@@ -25,9 +25,9 @@ echo 0 > /sys/devices/system/cpu/cpu9/online 2>/dev/null || true
 echo 0 > /sys/devices/system/cpu/cpu10/online 2>/dev/null || true
 echo 0 > /sys/devices/system/cpu/cpu11/online 2>/dev/null || true
 
-# LP-E cores (CPU 16, 17) - left enabled
-#echo 0 > /sys/devices/system/cpu/cpu16/online
-#echo 0 > /sys/devices/system/cpu/cpu17/online
+# LP-E cores (CPU 16, 17) OFF - SoC 타일 인터커넥트 오버헤드 차단 및 Compute 타일(2P+4E) 단일화
+echo 0 > /sys/devices/system/cpu/cpu16/online 2>/dev/null || true
+echo 0 > /sys/devices/system/cpu/cpu17/online 2>/dev/null || true
 
 # Restart power-profiles-daemon to refresh active CPU policy list after offlining cores
 systemctl restart power-profiles-daemon 2>/dev/null || true
