@@ -107,7 +107,17 @@ chmod +x *.sh scripts/*.sh
   * `custom_limit.sh`: 대화형 클럭 제한/터보 설정 도구
   * `check_status.sh`: 활성 코어 수, 클럭, 팬모드, 온도 실시간 모니터링
 
-### 6. 전력 & 토폴로지 실측 벤치마크 (Showcase)
+### 6. 전력 최적화 고급 튜닝
+* **커서 깜빡임 차단 (`cursor-blink = false`)**:
+  * 1초 주기 커서 깜빡임으로 인한 화면 버퍼 갱신을 차단하여 eDP OLED 패널의 `PSR2 SLEEP` 지속 유지 (GPU RC6 딥슬립 진입률 극대화)
+* **백그라운드 패키지 데몬 마스킹**:
+  * 유휴 상태에서 CPU를 주기적으로 깨우던 `packagekit.service` 및 `gnome-software.service` 마스킹
+* **Intel Workload Type Hints 활성화**:
+  * 메테오레이크 CPU의 하드웨어 전력 최적화 감지 기능 활성화 (`workload_hint_enable = 1`)
+* **Intel Wi-Fi 초절전 파라미터**:
+  * `/etc/modprobe.d/iwlwifi.conf`에 `options iwlwifi power_save=1 power_level=5` 등록 (무선 칩셋 유휴 전력 절감)
+
+### 7. 전력 & 토폴로지 실측 벤치마크 (Showcase)
 
 실제 웹서핑 환경에서 배터리(`BAT1`) 방전 전력, CPU 패키지 온도, 실시간 클럭을 1~2분 단위로 정밀 샘플링하여 도출한 최적화 비교 데이터입니다.
 

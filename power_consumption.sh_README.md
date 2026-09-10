@@ -26,6 +26,7 @@
 | `/etc/sysctl.d/99-ssd-power-saving.conf` | SSD 더티 페이지 쓰기 주기 지연 및 laptop_mode 설정 | [`configs/sysctl/99-ssd-power-saving.conf`](./configs/sysctl/99-ssd-power-saving.conf) |
 | `/etc/udev/rules.d/99-power-profile-switch.rules` | AC/DC 전원 어댑터 연결/분리 이벤트 감지 udev 룰 | [`configs/udev/99-power-profile-switch.rules`](./configs/udev/99-power-profile-switch.rules) |
 | `/etc/sudoers.d/poweroptions` | 전원 스크립트 실행 시 비밀번호 입력을 면제하는 sudoers 설정 | [`configs/sudoers/poweroptions`](./configs/sudoers/poweroptions) |
+| `/etc/modprobe.d/iwlwifi.conf` | Intel Wi-Fi 모듈 초절전 모드 (power_save=1, power_level=5) | [`configs/modprobe/iwlwifi.conf`](./configs/modprobe/iwlwifi.conf) |
 | `~/.local/bin/disable-ht.sh` | CPU 하이퍼스레딩 및 하이브리드 코어 토폴로지 제어 스크립트 | [`configs/bin/disable-ht.sh`](./configs/bin/disable-ht.sh) |
 | `~/.config/autostart/` | 부팅 시 전원 프로필 및 CPU 토폴로지 자동 적용 데스크톱 항목 | [`configs/autostart/`](./configs/autostart/) |
 | `~/Desktop/OneClickScripts/PowerOptions/` | 바탕화면에서 원클릭으로 전원/터보 모드를 변경하는 도구 모음 | [`configs/power_options/`](./configs/power_options/) |
@@ -56,6 +57,17 @@ vm.laptop_mode = 5
   - P코어 ~2.9GHz / 8E코어 ~2.34GHz로 구동되어 총 24.5 GHz·core의 데스크톱급 멀티코어 성능 발휘
 - **🔋 배터리(DC) 전환 시**: 터보 부스트 OFF (기본 클럭 100%) + 균형 모드
   - P코어 ~2.00GHz / 8E코어 ~1.00GHz로 구동되어 동적 스위칭 전력($P=CV^2f$) 최소화 (실측 11.7W 달성)
+
+### (4) 전력 최적화 고급 튜닝
+- **커서 깜빡임 차단 (`cursor-blink = false`)**:
+  - 터미널 및 텍스트 편집기에서 1초마다 깜빡이는 커서로 인한 디스플레이 버퍼 갱신을 차단
+  - eDP 패널이 `PSR2 SLEEP` (패널 자체 메모리로 화면 유지, GPU 및 디스플레이 링크 완전 수면) 상태를 유지하도록 하여 GPU RC6 진입률을 극대화
+- **백그라운드 패키지 데몬 마스킹 (`packagekit`, `gnome-software`)**:
+  - 유휴 상태에서 주기적으로 CPU를 깨워 네트워크/패키지 폴링을 수행하던 백그라운드 서비스 차단
+- **Intel Workload Type Hints 활성화 (`workload_hint_enable = 1`)**:
+  - 메테오레이크 CPU에 내장된 하드웨어 워크로드 감지 전력 최적화 기능 활성화
+- **Intel Wi-Fi 초절전 파라미터 (`/etc/modprobe.d/iwlwifi.conf`)**:
+  - `options iwlwifi power_save=1 power_level=5`를 등록하여 무선 칩셋의 유휴 전력 대폭 절감
 
 ---
 
@@ -123,4 +135,10 @@ rm -rf ~/Desktop/OneClickScripts/PowerOptions
 for cpu in /sys/devices/system/cpu/cpu[0-9]*; do
     echo 1 | sudo tee "$cpu/online" 2>/dev/null || true
 done
+
+# 5. Wi-Fi 설정 및 백그라운드 서비스/커서 복원
+sudo rm -f /etc/modprobe.d/iwlwifi.conf
+sudo systemctl unmask packagekit.service packagekit-offline-update.service
+systemctl --user unmask gnome-software.service
+gsettings set org.gnome.desktop.interface cursor-blink true
 ```

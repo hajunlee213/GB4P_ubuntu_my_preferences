@@ -22,5 +22,10 @@ done
 echo 0 > /sys/devices/system/cpu/cpu16/online 2>/dev/null || true
 echo 0 > /sys/devices/system/cpu/cpu17/online 2>/dev/null || true
 
+# Intel Meteor Lake Workload Type Hints 활성화
+if [ -f /sys/devices/pci0000:00/0000:00:04.0/workload_hint/workload_hint_enable ]; then
+    echo 1 > /sys/devices/pci0000:00/0000:00:04.0/workload_hint/workload_hint_enable 2>/dev/null || true
+fi
+
 # Restart power-profiles-daemon to refresh active CPU policy list after offlining cores
 systemctl restart power-profiles-daemon 2>/dev/null || true

@@ -41,7 +41,11 @@ echo ""
 bash "${SCRIPT_DIR}/scripts/setup-power-sudoers.sh"
 echo ""
 
-# 6. 현재 전원 상태(AC/DC) 즉시 반영
+# 6. 전력 최적화 고급 튜닝 (커서 깜빡임 차단, Wi-Fi, 백그라운드 서비스 마스킹, 하드웨어 힌트)
+bash "${SCRIPT_DIR}/scripts/setup-power-advanced-tweaks.sh"
+echo ""
+
+# 7. 현재 전원 상태(AC/DC) 즉시 반영
 echo "-> 현재 전원 상태에 따른 프로필 즉시 적용..."
 if [ -x "${TARGET_HOME}/Desktop/OneClickScripts/PowerOptions/handle_power_change.sh" ]; then
     bash "${TARGET_HOME}/Desktop/OneClickScripts/PowerOptions/handle_power_change.sh" || true
@@ -65,4 +69,9 @@ echo "    - 🔌 AC (충전기 연결): 터보 ON (65% 제한) | Gnome/삼성 Ba
 echo "    - 🔋 DC (배터리 모드): 터보 OFF (100% 베이스 클럭) | Gnome/삼성 Balanced (실측 11.7W 초저전력)"
 echo " 4. 부팅 시 자동 감지 & 적용 (~/.config/autostart/)"
 echo " 5. 바탕화면 원클릭 도구 복원 (~/Desktop/OneClickScripts/PowerOptions/)"
+echo " 6. 전력 최적화 고급 튜닝"
+echo "    - GNOME 및 터미널 커서 깜빡임 차단 (GPU RC6 및 PSR2 딥슬립 유지)"
+echo "    - 백그라운드 패키지 데몬 마스킹 (PackageKit, GNOME Software)"
+echo "    - 인텔 메테오레이크 Workload Type Hints 활성화"
+echo "    - Intel Wi-Fi 초절전 파라미터 (/etc/modprobe.d/iwlwifi.conf: power_save=1, power_level=5)"
 echo "========================================================="
