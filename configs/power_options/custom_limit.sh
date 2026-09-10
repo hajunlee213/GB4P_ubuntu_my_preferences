@@ -67,6 +67,9 @@ echo "--------------------------------------------------"
 echo "설정을 적용 중입니다..."
 
 echo "$NEW_NO_TURBO" > /sys/devices/system/cpu/intel_pstate/no_turbo
+for f in /sys/devices/system/cpu/cpu*/cpufreq; do
+    [ -f "$f/cpuinfo_max_freq" ] && cat "$f/cpuinfo_max_freq" > "$f/scaling_max_freq" 2>/dev/null || true
+done
 echo "$USER_PERF" > /sys/devices/system/cpu/intel_pstate/max_perf_pct
 
 for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
