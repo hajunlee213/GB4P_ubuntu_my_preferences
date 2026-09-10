@@ -81,19 +81,19 @@ if [ "$IS_AC" -eq 1 ]; then
 else
     # ==========================================
     # [DC 배터리 모드]
-    # - CPU: 1번 풀파워 터보 OFF (터보 OFF / 100% 클럭)
+    # - CPU: 터보 ON / 50% 클럭 (P: 2.25GHz / E: 1.8GHz, Race to Sleep 최적화)
     # - 삼성 팬모드: Balanced (적극적 쿨링으로 발열 누적 방지)
     # - GNOME 전원: Balanced
     # ==========================================
-    echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null
-    echo 100 > /sys/devices/system/cpu/intel_pstate/max_perf_pct 2>/dev/null
+    echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null
+    echo 50 > /sys/devices/system/cpu/intel_pstate/max_perf_pct 2>/dev/null
     echo "balanced" > /sys/firmware/acpi/platform_profile 2>/dev/null
     powerprofilesctl set balanced 2>/dev/null || true
 
     TITLE="배터리 사용 (DC 모드)"
-    BODY="Gnome: Balanced | 풀파워 터보 OFF (100%) 적용"
+    BODY="Gnome: Balanced | 터보 ON (50% Race to Sleep) 적용"
     ICON="battery-low"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied DC Mode: Balanced (Turbo OFF / 100%)"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied DC Mode: Balanced (Turbo ON / 50%)"
 fi
 
 # ------------------------------------------------------------------------------
