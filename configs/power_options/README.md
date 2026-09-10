@@ -51,8 +51,8 @@
 ### 1) AC / DC 자동 전환 규칙 (`udev`)
 * **설정 파일**: `/etc/udev/rules.d/99-power-profile-switch.rules`
 * **동작 규칙**:
-  * **🔌 AC (충전기 연결 시)**: Gnome `Balanced` + `2_balanced_turbo_on.sh` (터보 ON / 65%)
-  * **🔋 DC (배터리 사용 시)**: Gnome `Power Saver` + `2_balanced_turbo_on.sh` (터보 ON / 65%)
+  * **🔌 AC (충전기 연결 시)**: Gnome `Balanced` + 터보 ON / 65% (P: ~2.9GHz / E: ~2.3GHz)
+  * **🔋 DC (배터리 사용 시)**: Gnome `Balanced` + 터보 ON / 40% (P: ~2.0GHz / E: ~1.5GHz Race to Sleep 최적화)
 * **영구 유지**: 재부팅 후에도 영구적으로 자동 동작합니다.
 
 ### 2) 부팅 시 자동 실행 (`autostart`)
