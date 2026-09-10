@@ -70,6 +70,9 @@ if [ "$IS_AC" -eq 1 ]; then
     # - GNOME 전원: Balanced
     # ==========================================
     echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null
+    for f in /sys/devices/system/cpu/cpu*/cpufreq; do
+        [ -f "$f/cpuinfo_max_freq" ] && cat "$f/cpuinfo_max_freq" > "$f/scaling_max_freq" 2>/dev/null || true
+    done
     echo 65 > /sys/devices/system/cpu/intel_pstate/max_perf_pct 2>/dev/null
     echo "balanced" > /sys/firmware/acpi/platform_profile 2>/dev/null
     powerprofilesctl set balanced 2>/dev/null || true
@@ -86,6 +89,9 @@ else
     # - GNOME 전원: Balanced
     # ==========================================
     echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null
+    for f in /sys/devices/system/cpu/cpu*/cpufreq; do
+        [ -f "$f/cpuinfo_max_freq" ] && cat "$f/cpuinfo_max_freq" > "$f/scaling_max_freq" 2>/dev/null || true
+    done
     echo 50 > /sys/devices/system/cpu/intel_pstate/max_perf_pct 2>/dev/null
     echo "balanced" > /sys/firmware/acpi/platform_profile 2>/dev/null
     powerprofilesctl set balanced 2>/dev/null || true
