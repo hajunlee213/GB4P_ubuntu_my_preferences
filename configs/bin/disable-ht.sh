@@ -9,8 +9,9 @@ echo 0 > /sys/devices/system/cpu/cpu4/online 2>/dev/null || true
 echo 0 > /sys/devices/system/cpu/cpu5/online 2>/dev/null || true
 echo 0 > /sys/devices/system/cpu/cpu7/online 2>/dev/null || true
 
-# P-core 2 (CPU 3, L2 ID 3) OFF - Dark Silicon 완충구역 생성 (발열 분산 및 피크온도 저감)
+# P-core 2 (CPU 3) & P-core 3 (CPU 6) OFF - 2P 체제 및 Dark Silicon 완충구역 생성 (발열 분산 및 피크온도 저감)
 echo 0 > /sys/devices/system/cpu/cpu3/online 2>/dev/null || true
+echo 0 > /sys/devices/system/cpu/cpu6/online 2>/dev/null || true
 
 # Ensure E-core cluster 1 (CPU 12-15, outer die) is online
 echo 1 > /sys/devices/system/cpu/cpu12/online 2>/dev/null || true
