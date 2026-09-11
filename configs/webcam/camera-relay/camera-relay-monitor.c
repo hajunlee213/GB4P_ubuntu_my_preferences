@@ -439,8 +439,6 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	int idle_polls = 0;  /* count poll timeouts for /proc fallback */
-
 	while (running) {
 		if (!relay_active) {
 			/*
@@ -454,16 +452,22 @@ int main(int argc, char *argv[])
 
 			if (use_events) {
 				/*
-				 * Wait for v4l2loopback event (zero CPU).
-				 * Use 2s timeout. On timeout, fall back to
-				 * /proc check — events may be broken after
-				 * a pipeline cycle on some v4l2loopback
-				 * versions.
+				 * Wait for v4l2loopback event (zero CPU, Zero-Wakeup).
+				 * Pure event-driven sleep (-1). Wakes up immediately
+				 * when an application opens the video device.
 				 */
 				struct pollfd pfd = {
 					.fd = fd, .events = POLLPRI
 				};
-				int ret = poll(&pfd, 1, 2000);
+				int ret = poll(&pfd, 1, -1);
+
+				if (ret < 0) {
+					if (errno == EINTR)
+						continue;
+					fprintf(stderr, "[monitor] poll error: %s\n",
+						strerror(errno));
+					break;
+				}
 
 				if (ret > 0 && (pfd.revents & POLLPRI)) {
 					struct v4l2_event ev;
@@ -488,25 +492,6 @@ int main(int argc, char *argv[])
 							clients);
 						if (clients > 0)
 							client_detected = 1;
-					}
-					idle_polls = 0;
-				} else {
-					/*
-					 * Event timeout — check /proc as
-					 * fallback. Events may be broken
-					 * after fd re-open on some versions.
-					 */
-					idle_polls++;
-					int clients = count_other_openers(
-						dev_stat.st_rdev,
-						our_pid, 0);
-					if (clients > 0) {
-						fprintf(stderr,
-							"[monitor] /proc"
-							" fallback:"
-							" clients=%d\n",
-							clients);
-						client_detected = 1;
 					}
 				}
 			} else {
