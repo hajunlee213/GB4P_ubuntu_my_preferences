@@ -1,0 +1,3 @@
+# Force ID_V4L_CAPABILITIES so Chromium/Chrome's udev-based V4L2 camera
+# enumeration lists the Camera Relay loopback. Runs after 60-persistent-v4l.
+SUBSYSTEM=="video4linux", ATTR{name}=="Camera Relay", ENV{ID_V4L_CAPABILITIES}=":capture:"

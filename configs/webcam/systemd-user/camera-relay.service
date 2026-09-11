@@ -1,0 +1,17 @@
+[Unit]
+Description=Camera Relay (on-demand libcamera to v4l2loopback)
+After=pipewire.service wireplumber.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/camera-relay start --on-demand
+ExecStop=/usr/local/bin/camera-relay stop
+Restart=on-failure
+RestartSec=5
+Environment=LIBCAMERA_IPA_MODULE_PATH=/usr/local/lib/x86_64-linux-gnu/libcamera
+Environment=GST_PLUGIN_PATH=/usr/local/lib/x86_64-linux-gnu/gstreamer-1.0
+Environment=LD_LIBRARY_PATH=/usr/local/lib/x86_64-linux-gnu
+
+
+[Install]
+WantedBy=default.target

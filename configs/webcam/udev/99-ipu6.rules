@@ -1,0 +1,2 @@
+KERNEL=="ipu-psys*", MODE="0660", GROUP="video"
+KERNEL=="ipu*", MODE="0660", GROUP="video"

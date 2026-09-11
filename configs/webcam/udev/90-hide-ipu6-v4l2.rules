@@ -1,0 +1,5 @@
+# Remove uaccess tag from raw Intel IPU6 ISYS V4L2 nodes.
+# libcamera accesses these via /dev/media0 and the video device nodes.
+# TAG-="uaccess" removes session-level permissions added by systemd.
+SUBSYSTEM=="video4linux", KERNEL=="video*", ATTR{name}=="Intel IPU6 ISYS Capture*", TAG-="uaccess"
+SUBSYSTEM=="video4linux", KERNEL=="video*", ATTR{name}=="Intel IPU6 CSI2*", TAG-="uaccess"

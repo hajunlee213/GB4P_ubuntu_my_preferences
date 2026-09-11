@@ -48,6 +48,12 @@ chmod +x *.sh scripts/*.sh
 ```
 > 검증된 인텔 i915 그래픽 드라이버 안정화(Early KMS), 마이크로코드/thermald, GPU 연산 가속(OpenCL), PCIe ASPM 초절전(`powersupersave`), PowerTOP 자동 튜닝 서비스를 복원합니다. (순정 복구: `sudo ./driver_power_patch.sh --restore`)
 
+### 7. 웹캠 드라이버 & On-Demand Relay 복원 (`webcam_setup.sh`)
+```bash
+sudo ./webcam_setup.sh
+```
+> 180도 뒤집힘 하드웨어 보정(ipu-bridge DKMS), 크롬/Chromium 인식(`exclusive_caps=1`), 부팅 레이스 컨디션 방지(IPU6 펌웨어 램디스크 번들링), 26MHz 클록 에러 해결 및 On-Demand 초절전 백그라운드 Relay 서비스를 복원합니다. (순정 복구: `sudo ./webcam_setup.sh --restore`)
+
 ---
 
 ## power_consumption (전력 소모 & 발열 튜닝 상세)
@@ -286,6 +292,36 @@ OLED 패널에서 다크모드 사용 시 발생하는 극단적인 명암비(�
 
 ---
 
+## webcam_setup (웹캠 드라이버 & On-Demand Relay 상세)
+
+갤럭시 북4 프로(NT960XGK / Meteor Lake)의 인텔 IPU6 MIPI CSI-2 웹캠 시스템(OV02C10 센서, IVSC)을 완벽하게 안정화하고 시스템 전역 및 브라우저에서 바른 방향으로 사용할 수 있도록 하는 복원 패치입니다.
+
+### 1. 180도 뒤집힘 하드웨어 보정 (`ipu-bridge-fix` DKMS)
+* **문제점**: 삼성 BIOS ACPI 테이블이 센서 회전 각도를 `0`으로 잘못 보고하여, 소프트웨어 `videoflip` 방식으로는 브라우저나 디스코드 등에서 화면이 거꾸로 출력됨.
+* **해결책**: `ipu-bridge-fix` (v1.4) DKMS 모듈을 통해 커널 `ipu-bridge` 드라이버 DMI 테이블에 모델명(`960XGK` 등)을 등록하여 **커널/하드웨어 레벨에서 센서 각도를 180도로 고정**. 브라우저 및 모든 앱에서 100% 정상 방향 출력.
+
+### 2. 크롬/Chromium 계열 웹캠 인식 (`exclusive_caps=1` & udev)
+* **문제점**: Chromium 계열 브라우저는 비디오 주입(`OUTPUT`) 기능이 공존하는 V4L2 루프백 장치를 웹캠 목록에서 배제함.
+* **해결책**:
+  * `/etc/modprobe.d/99-camera-relay-loopback.conf`에 `exclusive_caps=1`을 지정하여 프레임 주입 시 순수 `CAPTURE` 전용으로 전환.
+  * `/etc/modules-load.d/v4l2loopback.conf`로 부팅 시 `/dev/video0`을 선행 점유.
+  * `/etc/udev/rules.d/70-camera-relay-capabilities.rules`로 Chromium udev 열거자에 `ID_V4L_CAPABILITIES=":capture:"` 주입.
+  * `/etc/udev/rules.d/90-hide-ipu6-v4l2.rules`로 48개 원시 IPU6 ISYS 노드의 `uaccess`를 제거하여 일반 앱 혼선 차단.
+
+### 3. 부팅 복불복 켜짐 방지 (Initramfs 레이스 컨디션 해결)
+* **원인**: 부팅 초기 램디스크 단계에서 IPU6 드라이버가 로드될 때 센서 펌웨어(`ipu6epmtl_fw.bin`)가 램디스크에 없으면 루트 파일시스템 마운트 전 로드 실패.
+* **해결책**: `/etc/dracut.conf.d/ipu6-firmware.conf`를 등록하고 `dracut -f`로 램디스크에 펌웨어를 사전 번들링하여 부팅 타이밍과 무관하게 100% 안정 구동.
+
+### 4. 26MHz 외부 클록 호환 (`ov02c10-26mhz-fix` DKMS)
+* **원인**: 메테오레이크 IPU6의 26MHz 클록 공급을 순정 `ov02c10` 커널 드라이버가 거부(`-EINVAL: external clock 26000000 is not supported`).
+* **해결책**: 26MHz 클록을 정상 수용하도록 패치한 `ov02c10/1.0` DKMS 모듈 설치.
+
+### 5. 초절전 On-Demand Relay 데몬 (`camera-relay.service`)
+* 평상시 루프백 장치만 대기시켜 **CPU 및 센서 배터리 소모 0% 유지**.
+* 브라우저나 앱이 `/dev/video0`을 여는 순간 밀리초 단위로 파이프라인을 작동시키고 닫으면 즉시 센서 전원 차단.
+
+---
+
 ## 프로젝트 구조
 
 ```
@@ -303,7 +339,19 @@ GB4P_ubuntu_my_preferences/
 ├── oled_contrast.sh_README.md      # OLED 대비 완화 패치 상세 설명서
 ├── driver_power_patch.sh          # 드라이버 패치 & 전력 최적화 복원 스크립트
 ├── driver_power_patch.sh_README.md # 드라이버 패치 & 전력 최적화 상세 설명서
+├── webcam_setup.sh                # 웹캠 드라이버 & On-Demand Relay 복원 스크립트
+├── webcam_setup.sh_README.md       # 웹캠 패치 및 릴레이 상세 설명서
 ├── configs/
+│   ├── webcam/
+│   │   ├── dracut/ipu6-firmware.conf      # IPU6 펌웨어 램디스크 번들링
+│   │   ├── modprobe.d/                    # loopback(exclusive_caps) & IVSC 의존성
+│   │   ├── modules-load.d/                # v4l2loopback & IVSC 부팅 자동 로드
+│   │   ├── udev/                          # 크롬 인식(70) & 노드 은닉(90) & 권한(99)
+│   │   ├── systemd-user/camera-relay.service # On-Demand 릴레이 사용자 서비스
+│   │   ├── systemd/ & sbin/               # 상위 커널 머지 감지 자동 제거 서비스
+│   │   ├── camera-relay/                  # camera-relay 도구 및 모니터 C 소스
+│   │   ├── dkms/                          # ipu-bridge-fix(180도) & ov02c10(26MHz) 소스
+│   │   └── ipa/ov02c10.yaml               # OV02C10 센서 튜닝 프로파일
 │   ├── edid/
 │   │   └── gb4p_custom_edid.bin   # OLED 맞춤형 256B EDID 바이너리
 │   ├── icc/
@@ -353,6 +401,8 @@ GB4P_ubuntu_my_preferences/
 │   └── keyd/
 │       └── default.conf              # Alt_R/Ctrl_R -> 한영/한자 키 매핑
 ├── scripts/
+│   ├── setup-webcam.sh               # 웹캠 드라이버 & Relay 환경 복원
+│   ├── restore-webcam.sh             # 웹캠 드라이버 & Relay 순정 롤백
 │   ├── fix-i915-race-condition.sh    # i915 Early KMS 부팅 레이스 컨디션 해결 스크립트
 │   ├── setup-driver-power-patch.sh   # 드라이버 & 전력 최적화 복원 서브 스크립트
 │   ├── restore-driver-power-patch.sh # 드라이버 & 전력 최적화 순정 롤백 스크립트
