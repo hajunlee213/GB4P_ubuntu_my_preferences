@@ -31,18 +31,18 @@
 
 📁 **작업 경로**: `/home/hajun/Desktop/OneClickScripts/PowerOptions/`
 
-| 파일명 | 유형 | 터보 부스트 | 클럭 상한 | 설명 |
-| :--- | :---: | :---: | :---: | :--- |
-| **`00_Full_Power.sh`** *(신규)* | 원클릭 | **ON** | **80%** | **세션 임시 풀파워**: 모든 코어 온라인 + 터보 ON + Performance (재부팅 시 롤백) |
-| **`1_unlimited_turbo_on.sh`** | 원클릭 | **ON** | **100%** | **무제한 성능** (컴파일/고사양 작업 시 풀 부스트 파워) |
-| **`1_unlimited_turbo_off.sh`** | 원클릭 | **OFF** | **100%** | **풀파워 터보 OFF**: 베이스 클럭 100% 최대 활용 + 터보 발열 차단 |
-| **`2_balanced_turbo_on.sh`** | 원클릭 | **ON** | **65%** | **기본 권장 (밸런스 터보)**: 터보 반응성 유지 + 80°C 이하 발열 제어 |
-| **`3_balanced_turbo_off.sh`** | 원클릭 | **OFF** | **80%** | **밸런스 절전**: 터보 발열 차단 + 쾌적한 기본 클럭 유지 |
-| **`4_powersave_turbo_off.sh`** | 원클릭 | **OFF** | **50%** | **최대 절약**: 배터리 극대화 / 저발열 / 완전 절전 |
-| **`custom_limit.sh`** | 대화형 | 선택 | 직접 입력 | 사용자가 원하는 수치(10~100%)와 터보 ON/OFF를 대화형으로 입력 |
-| **`check_status.sh`** | 모니터링 | - | - | 현재 터보 상태, 클럭 제한(%), 코어별 실시간 클럭, 온도 점검 |
-| **`apply_on_boot.sh`** | 시스템 | - | - | 부팅(로그인) 시 AC/DC 상태를 판별하여 자동 실행 |
-| **`handle_power_change.sh`** | 시스템 | - | - | 충전기 연결(AC) / 분리(DC) 시 커널 udev가 자동 호출하는 핸들러 |
+| 파일명 | 유형 | 터보 부스트 | 클럭 상한 | EPP 정책 | 설명 |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| **`00_Full_Power.sh`** | 원클릭 | **ON** | **80%** | performance | **세션 임시 풀파워**: 모든 코어 온라인 + 터보 ON + Performance (재부팅 시 롤백) |
+| **`1_unlimited_turbo_on.sh`** | 원클릭 | **ON** | **100%** | performance | **무제한 성능** (컴파일/고사양 작업 시 풀 부스트 파워) |
+| **`1_unlimited_turbo_off.sh`** | 원클릭 | **OFF** | **100%** | balance_power | **풀파워 터보 OFF**: 베이스 클럭 100% 최대 활용 + 터보 발열 차단 |
+| **`2_balanced_turbo_on.sh`** | 원클릭 | **ON** | **65%** | balance_performance | **기본 권장 (밸런스 터보)**: 터보 반응성 유지 + 80°C 이하 발열 제어 |
+| **`3_balanced_turbo_off.sh`** | 원클릭 | **OFF** | **80%** | power | **밸런스 절전**: 터보 발열 차단 + EPP power 절전 |
+| **`4_powersave_turbo_off.sh`** | 원클릭 | **OFF** | **50%** | power | **최대 절약**: 배터리 극대화 / 저발열 / 완전 절전 |
+| **`custom_limit.sh`** | 대화형 | 선택 | 직접 입력 | 선택 연동 | 사용자가 원하는 수치(10~100%)와 터보 ON/OFF를 대화형으로 입력 |
+| **`check_status.sh`** | 모니터링 | - | - | 조회 | 현재 터보 상태, 클럭 제한(%), EPP 정책, 코어별 실시간 클럭, 온도 점검 |
+| **`apply_on_boot.sh`** | 시스템 | - | - | 자동 | 부팅(로그인) 시 AC/DC 상태를 판별하여 자동 실행 |
+| **`handle_power_change.sh`** | 시스템 | - | - | AC/DC 연동 | 충전기 연결(AC: bal_perf) / 분리(DC: power) 시 udev 자동 호출 핸들러 |
 
 ---
 
@@ -51,8 +51,8 @@
 ### 1) AC / DC 자동 전환 규칙 (`udev`)
 * **설정 파일**: `/etc/udev/rules.d/99-power-profile-switch.rules`
 * **동작 규칙**:
-  * **🔌 AC (충전기 연결 시)**: Gnome `Balanced` + 터보 ON / 65% (P: ~2.9GHz / 8E: ~2.34GHz, 데스크톱급 멀티 성능)
-  * **🔋 DC (배터리 사용 시)**: Gnome `Balanced` + 터보 OFF / 100% (P: ~2.00GHz / 8E: ~1.00GHz, 실측 11.7W 초저전력)
+  * **🔌 AC (충전기 연결 시)**: Gnome `Balanced` + 터보 ON / 65% (P: ~2.9GHz / 8E: ~2.34GHz) + EPP `balance_performance` (데스크톱급 반응성 및 멀티 성능)
+  * **🔋 DC (배터리 사용 시)**: Gnome `Balanced` + 터보 OFF / 100% (P: ~2.00GHz / 8E: ~1.00GHz) + EPP `power` (실측 10.1W 초저전력, 피크 스파이크 원천 억제)
 * **영구 유지**: 재부팅 후에도 영구적으로 자동 동작합니다.
 
 ### 2) 부팅 시 자동 실행 (`autostart`)

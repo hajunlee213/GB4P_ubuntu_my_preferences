@@ -10,6 +10,7 @@ echo "=========================================="
 NO_TURBO=$(cat /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null)
 MAX_PERF=$(cat /sys/devices/system/cpu/intel_pstate/max_perf_pct 2>/dev/null)
 PLATFORM_PROF=$(cat /sys/firmware/acpi/platform_profile 2>/dev/null)
+EPP=$(cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null)
 
 if [ "$NO_TURBO" = "0" ]; then
     TURBO_STAT="ON (사용 중)"
@@ -22,6 +23,7 @@ ONLINE_CORES=$(grep -c "^processor" /proc/cpuinfo 2>/dev/null)
 echo " * 활성 CPU 코어 : ${ONLINE_CORES}개 온라인"
 echo " * 터보 부스트   : $TURBO_STAT"
 echo " * 클럭 상한선   : ${MAX_PERF}%"
+echo " * 에너지 정책   : ${EPP} (EPP)"
 echo " * 삼성 팬모드   : ${PLATFORM_PROF}"
 echo "------------------------------------------"
 echo " [사용 가능한 모드 목록]"

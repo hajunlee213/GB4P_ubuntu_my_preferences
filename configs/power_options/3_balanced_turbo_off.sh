@@ -6,6 +6,9 @@ fi
 
 echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo
 echo 80 > /sys/devices/system/cpu/intel_pstate/max_perf_pct
+for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
+    [ -f "$f" ] && echo "power" > "$f" 2>/dev/null || true
+done
 
 # 데스크탑 알림 (백그라운드 비동기)
 (

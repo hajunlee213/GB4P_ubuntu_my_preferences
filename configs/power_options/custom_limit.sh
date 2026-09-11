@@ -54,7 +54,7 @@ read -p "선택 [1 또는 2] (엔터 = 1번 ON): " TURBO_CHOICE < /dev/tty
 if [ "$TURBO_CHOICE" = "2" ]; then
     NEW_NO_TURBO=1
     TURBO_NAME="OFF"
-    EPP_VAL="balance_power"
+    EPP_VAL="power"
 else
     NEW_NO_TURBO=0
     TURBO_NAME="ON"

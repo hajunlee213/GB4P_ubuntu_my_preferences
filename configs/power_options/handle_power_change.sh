@@ -64,6 +64,7 @@ if [ "$IS_AC" -eq 1 ]; then
     # - CPU: 2번 밸런스 터보 (터보 ON / 65% 제한)
     # - 삼성 팬모드: Balanced
     # - GNOME 전원: Balanced
+    # - EPP: balance_performance (반응성 및 고성능 보장)
     # ==========================================
     echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null
     for f in /sys/devices/system/cpu/cpu*/cpufreq; do
@@ -72,17 +73,21 @@ if [ "$IS_AC" -eq 1 ]; then
     echo 65 > /sys/devices/system/cpu/intel_pstate/max_perf_pct 2>/dev/null
     echo "balanced" > /sys/firmware/acpi/platform_profile 2>/dev/null
     powerprofilesctl set balanced 2>/dev/null || true
+    for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
+        [ -f "$f" ] && echo "balance_performance" > "$f" 2>/dev/null || true
+    done
 
     TITLE="전원 연결 (AC 모드)"
-    BODY="Gnome: Balanced | 2번 밸런스 터보 (65%) 적용"
+    BODY="Gnome: Balanced (EPP: bal_perf) | 2번 밸런스 터보 (65%) 적용"
     ICON="battery-charging"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied AC Mode: Balanced (Turbo ON / 65%)"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied AC Mode: Balanced (Turbo ON / 65%, EPP: balance_performance)"
 else
     # ==========================================
     # [DC 배터리 모드]
     # - CPU: 터보 OFF / 100% 베이스 클럭 (P: 2.0GHz / E: 1.0GHz, 저클럭 고효율 2P+8E 11.7W 달성)
     # - 삼성 팬모드: Balanced (적극적 쿨링으로 발열 누적 방지)
     # - GNOME 전원: Balanced
+    # - EPP: power (하드웨어 최저 전력 선호도 강제, P코어 과도 부스트 억제 & 깊은 C-state 유지)
     # ==========================================
     echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null
     for f in /sys/devices/system/cpu/cpu*/cpufreq; do
@@ -91,11 +96,14 @@ else
     echo 100 > /sys/devices/system/cpu/intel_pstate/max_perf_pct 2>/dev/null
     echo "balanced" > /sys/firmware/acpi/platform_profile 2>/dev/null
     powerprofilesctl set balanced 2>/dev/null || true
+    for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
+        [ -f "$f" ] && echo "power" > "$f" 2>/dev/null || true
+    done
 
     TITLE="배터리 사용 (DC 모드)"
-    BODY="Gnome: Balanced | 터보 OFF (2P+8E 100% 베이스) 적용"
+    BODY="Gnome: Balanced (EPP: power) | 터보 OFF (2P+8E 100% 베이스) 적용"
     ICON="battery-low"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied DC Mode: Balanced (Turbo OFF / 100%)"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied DC Mode: Balanced (Turbo OFF / 100%, EPP: power)"
 fi
 
 # ------------------------------------------------------------------------------

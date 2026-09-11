@@ -3,9 +3,9 @@
 # 부팅 시 자동 실행 스크립트 (Startup Power Settings)
 # ==============================================================================
 # - 부팅 시 현재 충전기(AC) 연결 여부를 감지하여 적절한 전원 모드 자동 적용
-#   - AC 연결 시 : 2번 밸런스 터보 (터보 ON / 65%) + Balanced
-#   - DC 배터리 시 : 터보 ON / 50% (P: 2.25GHz / E: 1.8GHz, Race to Sleep) + Balanced (적극적 쿨링)
-#   - E코어 클러스터(8~11 OFF, 12~15 ON), P코어 HT OFF, P코어 CPU 3, 6 OFF, LP-E CPU 16, 17 OFF (2P+4E 체제, 총 6코어) 유지
+#   - AC 연결 시 : 2번 밸런스 터보 (터보 ON / 65%, EPP: balance_performance) + Balanced
+#   - DC 배터리 시 : 터보 OFF / 100% 베이스 클럭 (P: 2.0GHz / 8E: 1.0GHz, EPP: power) + Balanced
+#   - CPU 토폴로지 : 2P + 8E 체제 (총 10코어 활성, P-HT/DarkSilicon/LP-E 차단)
 # ==============================================================================
 
 LOGFILE="/tmp/power_options_boot.log"
