@@ -76,6 +76,12 @@ if [ "$IS_AC" -eq 1 ]; then
     for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
         [ -f "$f" ] && echo "balance_performance" > "$f" 2>/dev/null || true
     done
+    (
+        sleep 0.5
+        for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
+            [ -f "$f" ] && echo "balance_performance" > "$f" 2>/dev/null || true
+        done
+    ) &
 
     TITLE="전원 연결 (AC 모드)"
     BODY="Gnome: Balanced (EPP: bal_perf) | 2번 밸런스 터보 (65%) 적용"
@@ -99,6 +105,12 @@ else
     for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
         [ -f "$f" ] && echo "power" > "$f" 2>/dev/null || true
     done
+    (
+        sleep 0.5
+        for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
+            [ -f "$f" ] && echo "power" > "$f" 2>/dev/null || true
+        done
+    ) &
 
     TITLE="배터리 사용 (DC 모드)"
     BODY="Gnome: Balanced (EPP: power) | 터보 OFF (2P+8E 100% 베이스) 적용"
