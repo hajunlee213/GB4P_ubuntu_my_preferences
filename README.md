@@ -241,8 +241,8 @@ OLED 패널에서 다크모드 사용 시 발생하는 극단적인 명암비(�
 * **`Medium Pure Black` (전력/번인 최우선)**:
   * **화이트 레벨**: **`85.0%`** (8비트 기준 `217/255`, 차분한 화이트 밝기)
   * **블랙 레벨**: **`0.0%`** (8비트 기준 `0/255`, OLED 픽셀 완전 소등으로 다크모드 배터리 절약 & 번인 방지 극대화)
-* **`Low Pure Black` (야간/암실 눈부심 극소화)**:
-  * **화이트 레벨**: **`75.0%`** (8비트 기준 `191/255`, 극저조도/야간 환경에서 눈부심 극소화)
+* **`Low Pure Black` (야간/암실 눈부심 완화)**:
+  * **화이트 레벨**: **`80.0%`** (8비트 기준 `204/255`, 극저조도/야간 환경에서 눈부심 완화)
   * **블랙 레벨**: **`0.0%`** (8비트 기준 `0/255`, OLED 픽셀 완전 소등으로 배터리 절약 & 번인 방지)
 
 ### 3. CLI 제어 도구 (`oled-mode`)
@@ -250,7 +250,7 @@ OLED 패널에서 다크모드 사용 시 발생하는 극단적인 명암비(�
 * `oled-mode high-pure`   : High Pure Black 적용 (화이트 90%, 블랙 0.0%)
 * `oled-mode medium`      : Medium Contrast 적용 (화이트 85%, 블랙 +4.0%)
 * `oled-mode medium-pure` : Medium Pure Black 적용 (화이트 85%, 블랙 0.0% - 전력/번인 최우선)
-* `oled-mode low-pure`    : Low Pure Black 적용 (화이트 75%, 블랙 0.0% - 야간/암실 최적)
+* `oled-mode low-pure`    : Low Pure Black 적용 (화이트 80%, 블랙 0.0% - 야간/암실 최적)
 * `oled-mode custom <블랙%> <화이트%>` : 원하는 비율로 실시간 ICC 생성 및 적용 (예: `oled-mode custom 2.0 90`)
 * `oled-mode status` : 현재 활성 디스플레이 프로파일 확인
 * `oled-mode reset` : CTM 초기화 및 패널 순정 공장 출하 상태로 즉시 복원
@@ -359,7 +359,7 @@ GB4P_ubuntu_my_preferences/
 │   │   ├── oled_high_pure_black.icc    # 화이트 90.0%, 블랙  0.0% VCGT (밝은 화이트 + 리얼블랙)
 │   │   ├── oled_medium_contrast.icc    # 화이트 85.0%, 블랙 +4.0% VCGT (눈 편안함 최우선)
 │   │   ├── oled_medium_pure_black.icc  # 화이트 85.0%, 블랙  0.0% VCGT (전력/번인 최우선)
-│   │   └── oled_low_pure_black.icc     # 화이트 75.0%, 블랙  0.0% VCGT (야간/암실 최적)
+│   │   └── oled_low_pure_black.icc     # 화이트 80.0%, 블랙  0.0% VCGT (야간/암실 최적)
 │   ├── dracut/
 │   │   ├── edid.conf              # Dracut 램디스크 펌웨어 패키징 설정
 │   │   └── i915.conf              # Dracut i915 Early KMS 램디스크 드라이버 설정

@@ -161,8 +161,8 @@ def main():
         print("    medium      : 화이트 85.0%, 블랙 +4.0% (눈 편안함 최우선, 강한 대비 완화 & 스미어링 차단)")
         print("    medium-pure : 화이트 85.0%, 블랙  0.0% (전력/번인 최우선, 리얼블랙 완전 소등)")
         print("")
-        print("  [화이트 75.0% 라인업 (Low)]")
-        print("    low-pure    : 화이트 75.0%, 블랙  0.0% (초저자극/야간 침실용, 리얼블랙 완전 소등)")
+        print("  [화이트 80.0% 라인업 (Low)]")
+        print("    low-pure    : 화이트 80.0%, 블랙  0.0% (초저자극/야간 침실용, 리얼블랙 완전 소등)")
         print("")
         print("  [기타 옵션]")
         print("    custom <블랙%> <화이트%> : 자유 튜닝 (예: oled-mode custom 2.0 90)")
@@ -219,7 +219,7 @@ def main():
             sys.exit(1)
         set_profile(dev_id, prof_id)
         print("✅ [OLED Eye Care] 'Low Pure Black' 적용 완료")
-        print("   - 화이트 레벨: 75.0% (초저자극 야간/침실용)")
+        print("   - 화이트 레벨: 80.0% (초저자극 야간/침실용)")
         print("   - 블랙 레벨  :  0.0% (OLED 완전 소등, 전력/번인 최우선)")
 
     elif cmd == "custom":

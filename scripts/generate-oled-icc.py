@@ -159,7 +159,7 @@ def main():
             os.path.join(out_dir, "oled_low_pure_black.icc"),
             "OLED Eye Care - Low Pure Black",
             0.000,
-            0.750
+            0.800
         )
 
 if __name__ == "__main__":
