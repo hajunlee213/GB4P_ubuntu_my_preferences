@@ -44,7 +44,8 @@ fi
 # - P코어 HT (CPU 2, 4, 5, 7) 및 P코어 (CPU 3, 6, Dark Silicon 완충존): OFF 유지 (2P 체제)
 # - E코어 Cluster 0 & 1 (CPU 8~15, 8개 E코어 전체): 항상 ON (저클럭 멀티코어 전성비 극대화)
 # - LP-E 코어 (CPU 16, 17, SoC 타일): 인터커넥트 오버헤드 차단을 위해 항상 OFF
-# ------------------------------------------------------------------------------
+# - P코어 (CPU 0, 1): 항상 ON (2P 체제)
+echo 1 > /sys/devices/system/cpu/cpu1/online 2>/dev/null
 for c in 2 3 4 5 6 7; do
     echo 0 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null
 done
