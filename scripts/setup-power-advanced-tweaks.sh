@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-echo "=== [6/6] 전력 최적화 고급 튜닝(커서, Wi-Fi, 패키지킷 마스킹, 하드웨어 힌트) 복원 시작 ==="
+echo "=== [6/6] 전력 최적화 고급 튜닝(커서, Wi-Fi, 하드웨어 힌트) 복원 시작 ==="
 
 # root 권한 확인
 if [ "$EUID" -ne 0 ]; then
@@ -27,16 +27,12 @@ if [ -d "/run/user/$USER_ID" ]; then
     sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_ID/bus" dconf write /org/gnome/Ptyxis/cursor-blink-mode "'off'" 2>/dev/null || true
 fi
 
-# 2. 백그라운드 패키지 데몬 마스킹 (불필요한 CPU 웨이크업 차단)
-echo "-> PackageKit 및 GNOME Software 백그라운드 서비스 마스킹..."
-systemctl stop packagekit.service packagekit-offline-update.service 2>/dev/null || true
-systemctl mask packagekit.service packagekit-offline-update.service 2>/dev/null || true
+# 2. PackageKit 서비스 unmask 보장 (App Center 'Manage' 탭 호환성)
+echo "-> PackageKit 서비스 unmask 확인 (App Center 정상 작동 보장)..."
+systemctl unmask packagekit.service packagekit-offline-update.service 2>/dev/null || true
 
 if [ -d "/run/user/$USER_ID" ]; then
-    sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_ID/bus" systemctl --user stop gnome-software.service 2>/dev/null || true
-    sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_ID/bus" systemctl --user mask gnome-software.service 2>/dev/null || true
-    sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_ID/bus" gsettings set org.gnome.software download-updates false 2>/dev/null || true
-    sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_ID/bus" gsettings set org.gnome.software allow-updates false 2>/dev/null || true
+    sudo -u "$TARGET_USER" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_ID/bus" systemctl --user unmask gnome-software.service 2>/dev/null || true
 fi
 
 # 3. Intel 하드웨어 Workload Type Hints 활성화

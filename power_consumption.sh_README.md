@@ -62,8 +62,8 @@ vm.laptop_mode = 5
 - **커서 깜빡임 차단 (`cursor-blink = false`)**:
   - 터미널 및 텍스트 편집기에서 1초마다 깜빡이는 커서로 인한 디스플레이 버퍼 갱신을 차단
   - eDP 패널이 `PSR2 SLEEP` (패널 자체 메모리로 화면 유지, GPU 및 디스플레이 링크 완전 수면) 상태를 유지하도록 하여 GPU RC6 진입률을 극대화
-- **백그라운드 패키지 데몬 마스킹 (`packagekit`, `gnome-software`)**:
-  - 유휴 상태에서 주기적으로 CPU를 깨워 네트워크/패키지 폴링을 수행하던 백그라운드 서비스 차단
+- **PackageKit 서비스 unmask 보장 (App Center 호환성)**:
+  - 우분투 App Center 'Manage(관리)' 탭의 deb 패키지 목록 및 업데이트 조회가 정상 동작하도록 PackageKit 서비스 unmask 상태 유지
 - **Intel Workload Type Hints 활성화 (`workload_hint_enable = 1`)**:
   - 메테오레이크 CPU에 내장된 하드웨어 워크로드 감지 전력 최적화 기능 활성화
 - **Intel Wi-Fi 초절전 파라미터 (`/etc/modprobe.d/iwlwifi.conf`)**:

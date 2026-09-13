@@ -118,12 +118,12 @@ sudo ./webcam_setup.sh
 ### 6. 전력 최적화 고급 튜닝
 * **커서 깜빡임 차단 (`cursor-blink = false`)**:
   * 1초 주기 커서 깜빡임으로 인한 화면 버퍼 갱신을 차단하여 eDP OLED 패널의 `PSR2 SLEEP` 지속 유지 (GPU RC6 딥슬립 진입률 극대화)
-* **백그라운드 패키지 데몬 마스킹**:
-  * 유휴 상태에서 CPU를 주기적으로 깨우던 `packagekit.service` 및 `gnome-software.service` 마스킹
+* **PackageKit unmask 보장 (App Center 호환성)**:
+  - 우분투 App Center 'Manage' 탭의 패키지 관리 및 업데이트 조회가 정상 동작하도록 PackageKit 서비스 unmask 보장
 * **Intel Workload Type Hints 활성화**:
-  * 메테오레이크 CPU의 하드웨어 전력 최적화 감지 기능 활성화 (`workload_hint_enable = 1`)
+  - 메테오레이크 CPU의 하드웨어 전력 최적화 감지 기능 활성화 (`workload_hint_enable = 1`)
 * **Intel Wi-Fi 초절전 파라미터**:
-  * `/etc/modprobe.d/iwlwifi.conf`에 `options iwlwifi power_save=1 power_level=5` 등록 (무선 칩셋 유휴 전력 절감)
+  - `/etc/modprobe.d/iwlwifi.conf`에 `options iwlwifi power_save=1 power_level=5` 등록 (무선 칩셋 유휴 전력 절감)
 
 ### 7. 전력 & 토폴로지 실측 벤치마크 (Showcase)
 
