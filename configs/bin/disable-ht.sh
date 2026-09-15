@@ -1,26 +1,25 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Disable P-core HT and P-core 2,3 (Dark Silicon) while enabling all 8 E-cores (2P+8E)
+# E-코어 8개 전용 아키텍처 및 P-코어 0번 식물인간 격리 세팅
 # ==============================================================================
 
-# P-core HT (CPU 2, 4, 5, 7) OFF
-echo 0 > /sys/devices/system/cpu/cpu2/online 2>/dev/null || true
-echo 0 > /sys/devices/system/cpu/cpu4/online 2>/dev/null || true
-echo 0 > /sys/devices/system/cpu/cpu5/online 2>/dev/null || true
-echo 0 > /sys/devices/system/cpu/cpu7/online 2>/dev/null || true
+# P-코어 (CPU 1~7) OFF (CPU 0은 x86 BSP 커널 제약으로 하드웨어 상주)
+for c in 1 2 3 4 5 6 7; do
+    echo 0 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null || true
+done
 
-# P-core 2 (CPU 3) & P-core 3 (CPU 6) OFF - 2P 체제 및 Dark Silicon 완충구역 생성 (발열 분산 및 피크온도 저감)
-echo 0 > /sys/devices/system/cpu/cpu3/online 2>/dev/null || true
-echo 0 > /sys/devices/system/cpu/cpu6/online 2>/dev/null || true
-
-# Ensure all E-cores (CPU 8-15, Cluster 0 & 1) are online for high-efficiency multi-threading
+# E-코어 Cluster 0 & 1 (CPU 8~15, 8개 E-코어 전체) ON
 for i in {8..15}; do
     echo 1 > /sys/devices/system/cpu/cpu$i/online 2>/dev/null || true
 done
 
-# LP-E cores (CPU 16, 17) OFF - SoC 타일 인터커넥트 오버헤드 차단 및 Compute 타일(2P+8E) 단일화
+# LP-E 코어 (CPU 16, 17) OFF - SoC 타일 인터커넥트 오버헤드 차단 및 Compute 타일 단일화
 echo 0 > /sys/devices/system/cpu/cpu16/online 2>/dev/null || true
 echo 0 > /sys/devices/system/cpu/cpu17/online 2>/dev/null || true
+
+# CPU 0 식물인간 격리: 사용자 세션 슬라이스의 프로세스를 E-코어(8-15)로 전량 제한
+systemctl set-property user.slice AllowedCPUs=8-15 2>/dev/null || true
+systemctl set-property user-1000.slice AllowedCPUs=8-15 2>/dev/null || true
 
 # Intel Meteor Lake Workload Type Hints 활성화
 if [ -f /sys/devices/pci0000:00/0000:00:04.0/workload_hint/workload_hint_enable ]; then

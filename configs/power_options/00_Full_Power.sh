@@ -14,10 +14,12 @@ if [ "$EUID" -ne 0 ]; then
     exec sudo "$0" "$@"
 fi
 
-echo "[1/4] 모든 CPU 코어 온라인 활성화 중..."
+echo "[1/4] 모든 CPU 코어 온라인 활성화 및 프로세스 격리 해제 중..."
 for f in /sys/devices/system/cpu/cpu*/online; do
     [ -f "$f" ] && echo 1 > "$f" 2>/dev/null
 done
+systemctl set-property user.slice AllowedCPUs= 2>/dev/null || true
+systemctl set-property user-1000.slice AllowedCPUs= 2>/dev/null || true
 
 echo "[2/4] 터보 부스트 ON 및 클럭 제한 80% 설정 중..."
 echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo

@@ -41,4 +41,9 @@ cp "${DISABLE_HT_SRC}" "${DISABLE_HT_DEST}"
 chmod +x "${DISABLE_HT_DEST}"
 chown -R "${TARGET_USER}:${TARGET_USER}" "${TARGET_HOME}/.local/bin"
 
+# 3. CPU 0 식물인간 격리 cgroups v2 영구 속성 등록 (AllowedCPUs=8-15)
+echo "-> cgroups v2 사용자 세션 CPU 할당 제한 (AllowedCPUs=8-15)..."
+systemctl set-property user.slice AllowedCPUs=8-15 2>/dev/null || true
+systemctl set-property user-1000.slice AllowedCPUs=8-15 2>/dev/null || true
+
 echo "[SUCCESS] 전원 관리 및 CPU 토폴로지 스크립트 복원 완료!"

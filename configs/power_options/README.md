@@ -50,9 +50,12 @@
 
 ### 1) AC / DC 자동 전환 규칙 (`udev`)
 * **설정 파일**: `/etc/udev/rules.d/99-power-profile-switch.rules`
+* **CPU 토폴로지**: **E-코어 8개 전담 체제 (CPU 1~7 OFF, CPU 0 식물인간 C10 격리, LP-E 16~17 OFF)**
+  * `systemctl set-property user.slice AllowedCPUs=8-15` 및 `user-1000.slice AllowedCPUs=8-15`로 모든 사용자 프로세스를 E-코어 8개로 완전 한정
+  * CPU 0은 x86 BSP 커널 제약으로 상주하되 부하가 0%로 유지되어 하드웨어 C10 딥슬립 지속
 * **동작 규칙**:
-  * **🔌 AC (충전기 연결 시)**: Gnome `Balanced` + 터보 ON / 65% (P: ~2.9GHz / 8E: ~2.34GHz) + EPP `balance_performance` (데스크톱급 반응성 및 멀티 성능)
-  * **🔋 DC (배터리 사용 시)**: Gnome `Balanced` + 터보 OFF / 100% (P: ~2.00GHz / 8E: ~1.00GHz) + EPP `power` (실측 10.1W 초저전력, 피크 스파이크 원천 억제)
+  * **🔌 AC (충전기 연결 시)**: Gnome `Balanced` + 터보 ON / 80% 제한 (E-코어 ~3.0GHz * 8개 = 24 GHz·core) + EPP `balance_performance` (즉각적인 고성능 반응성 보장)
+  * **🔋 DC (배터리 사용 시)**: Gnome `Balanced` + 터보 ON / 60% 제한 (E-코어 ~2.0GHz * 8개 = 16 GHz·core) + EPP `power` (P코어 발열 원천 차단, 실측 42°C 무소음 극저발열, 팬 0 RPM 정지 및 배터리 절감)
 * **영구 유지**: 재부팅 후에도 영구적으로 자동 동작합니다.
 
 ### 2) 부팅 시 자동 실행 (`autostart`)

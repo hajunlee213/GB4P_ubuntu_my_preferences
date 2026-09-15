@@ -40,21 +40,25 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 3. 코어 토폴로지 유지 (AC/DC 공통 2P+8E)
-# - P코어 HT (CPU 2, 4, 5, 7) 및 P코어 (CPU 3, 6, Dark Silicon 완충존): OFF 유지 (2P 체제)
-# - E코어 Cluster 0 & 1 (CPU 8~15, 8개 E코어 전체): 항상 ON (저클럭 멀티코어 전성비 극대화)
+# 3. 코어 토폴로지 유지 (E-코어 8개 전용 체제 + P코어 0번 식물인간 격리)
+# - P코어 (CPU 1~7): 완전 OFF (하드웨어 오프라인)
+# - CPU 0: x86 BSP 커널 제약으로 하드웨어 상주하되, cgroups v2로 작업 할당 차단 -> C10 딥슬립 유지
+# - E코어 Cluster 0 & 1 (CPU 8~15, 8개 E코어 전체): 항상 ON (저발열 멀티코어 전담)
 # - LP-E 코어 (CPU 16, 17, SoC 타일): 인터커넥트 오버헤드 차단을 위해 항상 OFF
-# - P코어 (CPU 0, 1): 항상 ON (2P 체제)
-echo 1 > /sys/devices/system/cpu/cpu1/online 2>/dev/null
-for c in 2 3 4 5 6 7; do
-    echo 0 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null
+# ------------------------------------------------------------------------------
+for c in 1 2 3 4 5 6 7; do
+    echo 0 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null || true
 done
 for c in {8..15}; do
-    echo 1 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null
+    echo 1 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null || true
 done
 for c in 16 17; do
-    echo 0 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null
+    echo 0 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null || true
 done
+
+# 사용자 세션 프로세스를 8개 E-코어(8-15)로 제한하여 CPU 0을 식물 상태(C10 슬립)로 유지
+systemctl set-property user.slice AllowedCPUs=8-15 2>/dev/null || true
+systemctl set-property user-1000.slice AllowedCPUs=8-15 2>/dev/null || true
 
 # ------------------------------------------------------------------------------
 # 4. AC / DC 모드별 정책 분기
@@ -62,16 +66,16 @@ done
 if [ "$IS_AC" -eq 1 ]; then
     # ==========================================
     # [AC 전원 연결 모드]
-    # - CPU: 2번 밸런스 터보 (터보 ON / 65% 제한)
+    # - CPU: E-코어 8개 부스트 가동 (터보 ON / 80% 제한 -> E코어 ~3.0GHz * 8개)
     # - 삼성 팬모드: Balanced
     # - GNOME 전원: Balanced
-    # - EPP: balance_performance (반응성 및 고성능 보장)
+    # - EPP: balance_performance (즉각적인 작업 반응성 유지)
     # ==========================================
     echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null
     for f in /sys/devices/system/cpu/cpu*/cpufreq; do
         [ -f "$f/cpuinfo_max_freq" ] && cat "$f/cpuinfo_max_freq" > "$f/scaling_max_freq" 2>/dev/null || true
     done
-    echo 65 > /sys/devices/system/cpu/intel_pstate/max_perf_pct 2>/dev/null
+    echo 80 > /sys/devices/system/cpu/intel_pstate/max_perf_pct 2>/dev/null
     echo "balanced" > /sys/firmware/acpi/platform_profile 2>/dev/null
     powerprofilesctl set balanced 2>/dev/null || true
     for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
@@ -85,22 +89,22 @@ if [ "$IS_AC" -eq 1 ]; then
     ) &
 
     TITLE="전원 연결 (AC 모드)"
-    BODY="Gnome: Balanced (EPP: bal_perf) | 2번 밸런스 터보 (65%) 적용"
+    BODY="Gnome: Balanced (EPP: bal_perf) | E-코어 부스트 (80% / ~3.0GHz) 적용"
     ICON="battery-charging"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied AC Mode: Balanced (Turbo ON / 65%, EPP: balance_performance)"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied AC Mode: Balanced (E-cores 80% / ~3.0GHz, EPP: balance_performance)"
 else
     # ==========================================
     # [DC 배터리 모드]
-    # - CPU: 터보 OFF / 100% 베이스 클럭 (P: 2.0GHz / E: 1.0GHz, 저클럭 고효율 2P+8E 11.7W 달성)
+    # - CPU: E-코어 8개 부스트 가동 (터보 ON / 60% 제한 -> E코어 ~2.0GHz * 8개, 극저발열 무소음)
     # - 삼성 팬모드: Balanced (적극적 쿨링으로 발열 누적 방지)
     # - GNOME 전원: Balanced
-    # - EPP: power (하드웨어 최저 전력 선호도 강제, P코어 과도 부스트 억제 & 깊은 C-state 유지)
+    # - EPP: power (하드웨어 최저 전력 선호도 강제)
     # ==========================================
-    echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null
+    echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null
     for f in /sys/devices/system/cpu/cpu*/cpufreq; do
         [ -f "$f/cpuinfo_max_freq" ] && cat "$f/cpuinfo_max_freq" > "$f/scaling_max_freq" 2>/dev/null || true
     done
-    echo 100 > /sys/devices/system/cpu/intel_pstate/max_perf_pct 2>/dev/null
+    echo 60 > /sys/devices/system/cpu/intel_pstate/max_perf_pct 2>/dev/null
     echo "balanced" > /sys/firmware/acpi/platform_profile 2>/dev/null
     powerprofilesctl set balanced 2>/dev/null || true
     for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
@@ -114,9 +118,9 @@ else
     ) &
 
     TITLE="배터리 사용 (DC 모드)"
-    BODY="Gnome: Balanced (EPP: power) | 터보 OFF (2P+8E 100% 베이스) 적용"
+    BODY="Gnome: Balanced (EPP: power) | E-코어 부스트 (60% / ~2.0GHz) 적용"
     ICON="battery-low"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied DC Mode: Balanced (Turbo OFF / 100%, EPP: power)"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied DC Mode: Balanced (E-cores 60% / ~2.0GHz, EPP: power)"
 fi
 
 # ------------------------------------------------------------------------------

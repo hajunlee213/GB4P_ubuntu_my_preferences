@@ -19,8 +19,12 @@ else
 fi
 
 ONLINE_CORES=$(grep -c "^processor" /proc/cpuinfo 2>/dev/null)
+ALLOWED_CPUS=$(systemctl show user-1000.slice -p AllowedCPUs 2>/dev/null | cut -d= -f2)
 
 echo " * 활성 CPU 코어 : ${ONLINE_CORES}개 온라인"
+if [ "$ALLOWED_CPUS" = "8-15" ]; then
+    echo " * 코어 아키텍처 : E-코어 8개 전담 체제 (CPU 0 식물인간 C10 격리)"
+fi
 echo " * 터보 부스트   : $TURBO_STAT"
 echo " * 클럭 상한선   : ${MAX_PERF}%"
 echo " * 에너지 정책   : ${EPP} (EPP)"
@@ -36,7 +40,10 @@ echo " 5) 4_powersave_turbo_off.sh  : 터보 OFF / 클럭  50% (최대 절약)"
 echo " 6) custom_limit.sh           : 직접 수치 입력 (대화형)"
 echo "------------------------------------------"
 echo " [실시간 CPU 코어별 클럭 (MHz)]"
-grep "cpu MHz" /proc/cpuinfo | awk '{printf " Core %2d : %6.1f MHz\n", NR-1, $4}'
+awk '/processor/ {p=$3} /cpu MHz/ {
+    label = (p == 0 ? " (P-Core C10 격리)" : (p >= 8 && p <= 15 ? " (E-Core)" : ""))
+    printf " CPU %2d : %6.1f MHz%s\n", p, $4, label
+}' /proc/cpuinfo
 echo "------------------------------------------"
 echo " [주요 온도]"
 paste <(cat /sys/class/thermal/thermal_zone*/type 2>/dev/null) <(cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null) | awk '{printf " %-15s : %.1f°C\n", $1, $2/1000}' | grep -E 'x86|TCPU|acpitz'
