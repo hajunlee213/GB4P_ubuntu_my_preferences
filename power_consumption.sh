@@ -66,7 +66,7 @@ echo "    - E코어 Cluster 0 & 1 전체 전담 (CPU 8~15 ON, 저발열 멀티�
 echo "    - LP-E코어 차단 (CPU 16, 17 OFF, SoC 타일 오버헤드 차단 & Compute 타일 단일화)"
 echo " 3. AC/DC 자동 전환 시스템 (/etc/udev/rules.d/99-power-profile-switch.rules)"
 echo "    - 🔌 AC (충전기 연결): 터보 ON (80% 제한 / ~3.0GHz) | EPP: balance_performance | Gnome/삼성 Balanced"
-echo "    - 🔋 DC (배터리 모드): 터보 ON (60% 제한 / ~2.0GHz) | EPP: power (초절전) | Gnome/삼성 Balanced (42°C대 무소음 극저발열)"
+echo "    - 🔋 DC (배터리 모드): 터보 ON (70% 제한 / ~2.5GHz) | EPP: power (초절전) | Gnome/삼성 Balanced (전성비 최적)"
 echo " 4. 부팅 시 자동 감지 & 적용 (~/.config/autostart/)"
 echo " 5. 바탕화면 원클릭 도구 복원 (~/Desktop/OneClickScripts/PowerOptions/)"
 echo " 6. 전력 최적화 고급 튜닝"
