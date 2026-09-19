@@ -1,0 +1,13 @@
+[Unit]
+Description=AC Plug and Resume Wake Display Daemon
+After=graphical-session.target gnome-session.target org.gnome.Shell@wayland.service
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/ac-wake-display.py
+Restart=on-failure
+RestartSec=2s
+
+[Install]
+WantedBy=graphical-session.target default.target

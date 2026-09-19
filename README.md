@@ -384,10 +384,12 @@ GB4P_ubuntu_my_preferences/
 │   │   ├── power-options-startup.desktop # 부팅 시 전원 프로필 자동 적용
 │   │   └── disable-ht.desktop            # 부팅 시 CPU 토폴로지 적용
 │   ├── bin/
+│   │   ├── ac-wake-display.py        # AC 연결 및 절전 복귀 시 화면 자동 기동 데몬
 │   │   ├── disable-ht.sh             # CPU HT 및 E코어 클러스터0 차단 스크립트
 │   │   ├── oled-mode                 # OLED Eye Care CLI 전환 및 제어 도구
 │   │   └── power-refresh-sdr-daemon.py # 전원 연동 주사율 & sdr-native 데몬
 │   ├── systemd-user/
+│   │   ├── ac-wake-display.service   # AC/절전복귀 화면 깨움 사용자 서비스
 │   │   └── power-refresh-sdr.service # systemd 사용자 서비스 유닛 파일
 │   ├── power_options/                # 바탕화면 원클릭 전원 제어 도구 모음
 │   │   ├── 00_Full_Power.sh
