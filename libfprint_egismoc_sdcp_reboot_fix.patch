@@ -1,0 +1,41 @@
+diff --git a/libfprint/drivers/egismoc/egismoc.c b/libfprint/drivers/egismoc/egismoc.c
+index ab0a19a..3ce6244 100644
+--- a/libfprint/drivers/egismoc/egismoc.c
++++ b/libfprint/drivers/egismoc/egismoc.c
+@@ -1984,5 +1984,5 @@ fpi_device_egismoc_class_init (FpiDeviceEgisMocClass *klass)
+ 
+   /* some but not all egismoc devices support reconnect; easiest to just disable for all */
+   sdcp_dev_class->supports_reconnect = FALSE;
+-  sdcp_dev_class->claim_expiration_seconds = 86400;
++  sdcp_dev_class->claim_expiration_seconds = -1;
+ }
+diff --git a/libfprint/fpi-sdcp-device.c b/libfprint/fpi-sdcp-device.c
+index ff78377..61671e3 100644
+--- a/libfprint/fpi-sdcp-device.c
++++ b/libfprint/fpi-sdcp-device.c
+@@ -771,9 +771,9 @@ fpi_sdcp_device_init_claim (FpiSdcpDevice *self)
+ 
+   if (!g_str_equal (cached_boot_id, sdcp_get_boot_id ()))
+     {
+-      fp_dbg ("Cached SDCP claim is from previous boot %s and is no longer valid.", cached_boot_id);
+-      fpi_sdcp_device_delete_cached_claim (self);
+-      goto generate_new;
++      fp_dbg ("Cached SDCP claim is from previous boot %s. Reusing it.", cached_boot_id);
++      // fpi_sdcp_device_delete_cached_claim (self);
++      // goto generate_new;
+     }
+ 
+   priv->claim_connected_time = cached_connected_time;
+@@ -824,8 +824,10 @@ fpi_sdcp_device_init_claim (FpiSdcpDevice *self)
+     goto cache_init_failed;
+   memcpy (priv->application_symmetric_key, app_symmetric_key, SDCP_APPLICATION_SYMMETRIC_KEY_SIZE);
+ 
+-  priv->is_connected = TRUE;
+-
++  if (g_str_equal (cached_boot_id, sdcp_get_boot_id ()))
++    priv->is_connected = TRUE;
++  else
++    priv->is_connected = FALSE;
+   return TRUE;
+ 
+ cache_init_failed:
