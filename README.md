@@ -186,6 +186,14 @@ sudo ./webcam_setup.sh
 - `disable-while-typing true`: 타이핑 중 터치패드 잠금
 - `two-finger-scrolling-enabled true`: 두 손가락 스크롤 활성화
 
+### 4. 터치패드 탭 앤 드래그 확장 데몬 (`touchpad-edge-motion`)
+- **기능**: 터치패드로 탭 앤 드래그(또는 클릭 드래그) 도중 모서리/가장자리에 도달했을 때, 손가락을 뗄 필요 없이 가상 마우스 이벤트를 통해 커서를 지속적으로 이동시킵니다.
+- **특징**:
+  - 60Hz 갱신 빈도, 초당 150px (프레임당 2.5px) 부드러운 속도
+  - 손가락을 떼거나 안쪽으로 움직이는 즉시 1ms 이내 이동 중단 (Instant Escape)
+  - 팜 리젝션 호환 및 물리 클릭/더블탭 홀드 상태 정밀 감지
+  - `systemd` 서비스(`touchpad-edge-motion.service`)로 부팅 시 항시 자동 구동
+
 ---
 
 ## display_tuning (디스플레이 다중 주사율 & OLED 패널 최적화 상세)
@@ -411,8 +419,11 @@ GB4P_ubuntu_my_preferences/
 │   │   └── README.md
 │   ├── libinput/
 │   │   └── local-overrides.quirks    # 터치패드 팜리젝션 & DWT quirks
-│   └── keyd/
-│       └── default.conf              # Alt_R/Ctrl_R -> 한영/한자 키 매핑
+│   ├── keyd/
+│   │   └── default.conf              # Alt_R/Ctrl_R -> 한영/한자 키 매핑
+│   └── touchpad-edge-motion/
+│       ├── edge_motion.py            # 탭 앤 드래그 엣지 모션 데몬 소스
+│       └── touchpad-edge-motion.service # systemd 서비스 유닛 파일
 ├── scripts/
 │   ├── setup-webcam.sh               # 웹캠 드라이버 & Relay 환경 복원
 │   ├── restore-webcam.sh             # 웹캠 드라이버 & Relay 순정 롤백
@@ -434,6 +445,7 @@ GB4P_ubuntu_my_preferences/
 │   ├── setup-power-sudoers.sh        # sudoers 무암호 권한 복원
 │   ├── setup-touchpad.sh             # libinput 설정 복원
 │   ├── setup-keyd.sh                 # keyd 설치 및 서비스 복원
-│   └── setup-gnome.sh                # GNOME 터치패드 옵션 설정
+│   ├── setup-gnome.sh                # GNOME 터치패드 옵션 설정
+│   └── setup-touchpad-edge-motion.sh # 탭 앤 드래그 확장 데몬 복원
 └── README.md
 ```

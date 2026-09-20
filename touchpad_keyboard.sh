@@ -25,6 +25,10 @@ echo ""
 bash "${SCRIPT_DIR}/scripts/setup-gnome.sh"
 echo ""
 
+# 4. 터치패드 탭 앤 드래그 확장 데몬(Edge Motion) 복원
+bash "${SCRIPT_DIR}/scripts/setup-touchpad-edge-motion.sh"
+echo ""
+
 echo "========================================================="
 echo " [SUCCESS] 터치패드 및 키보드 설정 복원이 완료되었습니다!"
 echo "========================================================="
@@ -34,4 +38,5 @@ echo "    - Alt_R  -> Hangul (KEY_HANGEUL)"
 echo "    - Ctrl_R -> Hanja  (KEY_HANJA)"
 echo "    - CLI 명령어 'keyd' 사용 가능 (/usr/local/bin/keyd)"
 echo " 3. GNOME 터치패드 옵션: 탭 클릭, 자연스러운 스크롤, 타이핑 중 잠금 적용됨"
+echo " 4. 탭 앤 드래그 확장 데몬: systemd touchpad-edge-motion.service 항시 실행 중"
 echo "========================================================="

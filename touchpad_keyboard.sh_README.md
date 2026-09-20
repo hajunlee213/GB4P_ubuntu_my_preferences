@@ -15,18 +15,23 @@
    - libinput은 이 가상 키보드를 '외장 키보드'로 간주하여 "내장 키보드 타이핑 시 터치패드 잠금" 기능이 풀려버리는 문제가 발생합니다.
 3. **한영 / 한자 키 매핑 부재**:
    - 우분투 기본 상태에서는 물리적인 한영/한자 키가 없는 101/104키 배열 키보드에서 오른쪽 Alt와 Ctrl이 각각 `Alt_R`, `Control_R`로만 동작하므로 한영 전환에 불편이 있습니다.
+4. **탭 앤 드래그(또는 클릭 드래그) 시 터치패드 가장자리 도달 한계**:
+   - 터치패드로 창이나 텍스트를 잡고 끌 때 터치패드 끝에 손가락이 닿으면 손을 뗄 수 없어 더 이상 멀리 드래그하지 못하고 끊기는 불편이 있습니다.
 
 ---
 
 ## 2. 적용되는 설정 및 시스템 경로
 
-이 스크립트는 다음 위치에 설정 파일 및 심볼릭 링크를 배치합니다:
+이 스크립트는 다음 위치에 설정 파일, 실행 데몬 및 서비스를 배치합니다:
 
 | 대상 경로 | 설명 | 원본 파일 위치 |
 | :--- | :--- | :--- |
 | `/etc/libinput/local-overrides.quirks` | libinput 하드웨어 quirks (팜 감지 및 가상키보드 내장화) | [`configs/libinput/local-overrides.quirks`](./configs/libinput/local-overrides.quirks) |
 | `/etc/keyd/default.conf` | keyd 키 리매핑 설정 (Right Alt ➡️ Hangul, Right Ctrl ➡️ Hanja) | [`configs/keyd/default.conf`](./configs/keyd/default.conf) |
 | `/usr/local/bin/keyd` | Ubuntu 패키지 바이너리(`/usr/bin/keyd.rvaiya`) 심볼릭 링크 | 자동 생성 |
+| `/usr/local/bin/touchpad-edge-motion` | 탭 앤 드래그 확장(가장자리 자동 이동) 데몬 실행 파일 | [`configs/touchpad-edge-motion/edge_motion.py`](./configs/touchpad-edge-motion/edge_motion.py) |
+| `/etc/systemd/system/touchpad-edge-motion.service` | 엣지 모션 데몬 systemd 항시 실행 서비스 | [`configs/touchpad-edge-motion/touchpad-edge-motion.service`](./configs/touchpad-edge-motion/touchpad-edge-motion.service) |
+| `/etc/udev/rules.d/99-uinput.rules` | 가상 입력 생성을 위한 uinput 장치 접근 권한 udev 룰 | 자동 생성 |
 | GNOME gsettings | 터치패드 탭 클릭, 자연스러운 스크롤, 타이핑 시 잠금 | 스크립트 내 실행 |
 
 ---
@@ -69,6 +74,14 @@ rightcontrol = hanja
 - Ubuntu/Debian 공식 패키지는 기존 `onak` 패키지와의 이름 충돌을 피하기 위해 실행 파일명이 `/usr/bin/keyd.rvaiya`로 패키징되어 있습니다.
 - 스크립트가 `/usr/local/bin/keyd -> /usr/bin/keyd.rvaiya` 심볼릭 링크를 생성하므로 사용자는 터미널에서 표준 `keyd` CLI 명령을 그대로 사용할 수 있습니다.
 
+### (4) 탭 앤 드래그 확장 데몬 (`touchpad-edge-motion`)
+- **동작 방식**: 리눅스 커널 `evdev`로 터치패드 절대 좌표 및 더블탭/클릭 드래그 상태를 추적하고, 손가락이 터치패드 가장자리(외곽 4% 마진)에 도달하면 `uinput` 가상 마우스를 통해 해당 방향으로 상대 이동(`REL_X`, `REL_Y`)을 지속적으로 주입합니다.
+- **주요 스펙**:
+  - **속도 및 빈도**: 60Hz 갱신 빈도, 프레임당 2.5px (초당 150px) 이동으로 끊김 없이 부드러운 움직임 보장
+  - **즉각 탈출 (Instant Escape)**: 손가락을 떼거나 안쪽으로 1px이라도 움직이면 1ms의 지체 없이 즉각 이동 중단
+  - **오작동 방지**: 팜 리젝션 영역에서 시작된 오터치 배제 및 엄격한 더블탭 드래그 구분
+- **항시 실행 (systemd)**: `/etc/systemd/system/touchpad-edge-motion.service`로 등록되어 부팅 시부터 항시 백그라운드 구동
+
 ---
 
 ## 4. 수동 확인 및 테스트 명령어
@@ -84,6 +97,14 @@ rightcontrol = hanja
 - **설정 즉시 리로드**:
   ```bash
   sudo keyd reload
+  ```
+- **탭 앤 드래그 데몬 서비스 상태 확인**:
+  ```bash
+  systemctl status touchpad-edge-motion
+  ```
+- **데몬 실시간 로그 확인**:
+  ```bash
+  journalctl -u touchpad-edge-motion -f
   ```
 
 ---
@@ -102,5 +123,13 @@ sudo systemctl disable keyd
 sudo rm -f /etc/keyd/default.conf
 sudo rm -f /usr/local/bin/keyd
 
-# 3. 변경사항 적용을 위해 재부팅 또는 로그아웃
+# 3. 탭 앤 드래그 데몬 중지 및 파일 제거
+sudo systemctl stop touchpad-edge-motion
+sudo systemctl disable touchpad-edge-motion
+sudo rm -f /etc/systemd/system/touchpad-edge-motion.service
+sudo rm -f /usr/local/bin/touchpad-edge-motion
+sudo rm -f /etc/udev/rules.d/99-uinput.rules
+sudo systemctl daemon-reload
+
+# 4. 변경사항 완전 적용을 위해 재부팅 또는 로그아웃
 ```
