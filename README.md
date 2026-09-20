@@ -99,7 +99,7 @@ sudo ./webcam_setup.sh
   * **클럭 상한선**: 70% (`max_perf_pct = 70`) - E-코어 ~2.5GHz * 8개 (총 20.0 GHz·core의 쾌적한 연산력)
   * **에너지 정책**: EPP `power` (하드웨어 최저 전력 선호도 강제)
   * **동작 전략**: P-코어 발열을 원천 배제하고 8개 E-코어를 전성비 최적 지점(~2.5GHz)까지 허용하여 멀티태스킹 반응성과 저발열 최적 균형 유지
-  * **삼성 팬/Gnome 모드**: `Balanced` (적극적 쿨링을 유지하여 배터리 모드 발열 누적 원천 차단)
+  * **삼성 팬/Gnome 모드**: `Power Saver` / `low-power` (팬 회전 억제로 모터 전력 절감 및 완벽한 무소음 유지)
 
 ### 4. 부팅 시 자동 감지 & 적용 (Autostart)
 * **설정 파일**: `~/.config/autostart/power-options-startup.desktop`

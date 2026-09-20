@@ -55,7 +55,7 @@
   * CPU 0은 x86 BSP 커널 제약으로 상주하되 부하가 0%로 유지되어 하드웨어 C10 딥슬립 지속
 * **동작 규칙**:
   * **🔌 AC (충전기 연결 시)**: Gnome `Balanced` + 터보 ON / 80% 제한 (E-코어 ~3.0GHz * 8개 = 24 GHz·core) + EPP `balance_performance` (즉각적인 고성능 반응성 보장)
-  * **🔋 DC (배터리 사용 시)**: Gnome `Balanced` + 터보 ON / 70% 제한 (E-코어 ~2.5GHz * 8개 = 20 GHz·core) + EPP `power` (P코어 발열 원천 차단, 전성비 최적 구간 ~2.5GHz, 쾌적한 반응성과 저발열 밸런스)
+  * **🔋 DC (배터리 사용 시)**: Gnome `Power Saver` + 터보 ON / 70% 제한 (E-코어 ~2.5GHz * 8개 = 20 GHz·core) + EPP `power` (P코어 발열 원천 차단, 전성비 최적 구간 ~2.5GHz, 쾌적한 반응성과 팬 소음 억제/무소음 유지)
 * **영구 유지**: 재부팅 후에도 영구적으로 자동 동작합니다.
 
 ### 2) 부팅 시 자동 실행 (`autostart`)

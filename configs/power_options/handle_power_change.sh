@@ -96,8 +96,8 @@ else
     # ==========================================
     # [DC 배터리 모드]
     # - CPU: E-코어 8개 부스트 가동 (터보 ON / 70% 제한 -> E코어 ~2.5GHz * 8개, 전성비 최적)
-    # - 삼성 팬모드: Balanced (적극적 쿨링으로 발열 누적 방지)
-    # - GNOME 전원: Balanced
+    # - 삼성 팬모드: Low-Power (무소음 / 팬 동작 억제)
+    # - GNOME 전원: Power Saver
     # - EPP: power (하드웨어 최저 전력 선호도 강제)
     # ==========================================
     echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null
@@ -105,8 +105,8 @@ else
         [ -f "$f/cpuinfo_max_freq" ] && cat "$f/cpuinfo_max_freq" > "$f/scaling_max_freq" 2>/dev/null || true
     done
     echo 70 > /sys/devices/system/cpu/intel_pstate/max_perf_pct 2>/dev/null
-    echo "balanced" > /sys/firmware/acpi/platform_profile 2>/dev/null
-    powerprofilesctl set balanced 2>/dev/null || true
+    echo "low-power" > /sys/firmware/acpi/platform_profile 2>/dev/null
+    powerprofilesctl set power-saver 2>/dev/null || true
     for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
         [ -f "$f" ] && echo "power" > "$f" 2>/dev/null || true
     done
@@ -118,9 +118,9 @@ else
     ) &
 
     TITLE="배터리 사용 (DC 모드)"
-    BODY="Gnome: Balanced (EPP: power) | E-코어 부스트 (70% / ~2.5GHz) 적용"
+    BODY="Gnome: Power Saver (EPP: power) | E-코어 부스트 (70% / ~2.5GHz) 적용"
     ICON="battery-low"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied DC Mode: Balanced (E-cores 70% / ~2.5GHz, EPP: power)"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied DC Mode: Power Saver (E-cores 70% / ~2.5GHz, EPP: power)"
 fi
 
 # ------------------------------------------------------------------------------

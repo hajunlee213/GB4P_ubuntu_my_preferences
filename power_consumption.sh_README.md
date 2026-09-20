@@ -59,8 +59,8 @@ vm.laptop_mode = 5
 ### (3) AC/DC 자동 전환 시스템 (`/etc/udev/rules.d/99-power-profile-switch.rules`)
 - **🔌 충전기(AC) 연결 시**: 터보 부스트 ON (80% 클럭 제한) + 균형 모드 + EPP `balance_performance`
   - E-코어 8개 ~3.0GHz 구동 (총 24.0 GHz·core 연산력으로 고부하/컴파일 시 쾌적한 반응성 제공)
-- **🔋 배터리(DC) 전환 시**: 터보 부스트 ON (70% 클럭 제한) + 균형 모드 + EPP `power`
-  - E-코어 8개 ~2.5GHz 구동 (총 20.0 GHz·core 연산력 제공, 전성비 최적 구간 ~2.5GHz를 활용하여 멀티태스킹 반응성과 저발열 최적 균형 달성)
+- **🔋 배터리(DC) 전환 시**: 터보 부스트 ON (70% 클럭 제한) + 절전 모드(Power Saver) + EPP `power`
+  - E-코어 8개 ~2.5GHz 구동 (총 20.0 GHz·core 연산력 제공, 전성비 최적 구간 ~2.5GHz를 활용하여 멀티태스킹 반응성과 저발열 최적 균형 달성, 팬 회전 억제로 모터 전력 절감 및 무소음 유지)
 
 ### (4) 전력 최적화 고급 튜닝
 - **커서 깜빡임 차단 (`cursor-blink = false`)**:
