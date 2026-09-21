@@ -43,6 +43,8 @@ echo "    - ov02c10-26mhz-fix DKMS 설치 (Meteor Lake 26MHz 클록 에러 차�
 echo " 5. On-Demand 전력/발열 초절전 백그라운드 릴레이:"
 echo "    - ~/.config/systemd/user/camera-relay.service 활성화"
 echo "    - 앱이 웹캠을 열 때만 파이프라인 가동 (미사용 시 CPU/배터리 0%)"
+echo " 6. 생생한 색감 보정 (GStreamer videobalance):"
+echo "    - RELAY_COLOR_FILTER=\"videobalance saturation=1.3\" 적용 (우중충한 톤 개선)"
 echo "========================================================="
 echo ""
 echo " 🚀 필수 안내:"

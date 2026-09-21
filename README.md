@@ -52,7 +52,7 @@ chmod +x *.sh scripts/*.sh
 ```bash
 sudo ./webcam_setup.sh
 ```
-> 180도 뒤집힘 하드웨어 보정(ipu-bridge DKMS), 크롬/Chromium 인식(`exclusive_caps=1`), 부팅 레이스 컨디션 방지(IPU6 펌웨어 램디스크 번들링), 26MHz 클록 에러 해결 및 On-Demand 초절전 백그라운드 Relay 서비스를 복원합니다. (순정 복구: `sudo ./webcam_setup.sh --restore`)
+> 180도 뒤집힘 하드웨어 보정(ipu-bridge DKMS), 크롬/Chromium 인식(`exclusive_caps=1`), 부팅 레이스 컨디션 방지(IPU6 펌웨어 램디스크 번들링), 26MHz 클록 에러 해결, 생생한 색감 보정(채도 1.3) 및 On-Demand 초절전 백그라운드 Relay 서비스를 복원합니다. (순정 복구: `sudo ./webcam_setup.sh --restore`)
 
 ### 8. 지문인식 센서 재부팅 수정 및 PAM 옵션 최적화 (`libfprint`, `pam_fprint_tuning.sh`)
 ```bash
@@ -339,6 +339,9 @@ OLED 패널에서 다크모드 사용 시 발생하는 극단적인 명암비(�
 ### 5. 초절전 On-Demand Relay 데몬 (`camera-relay.service`)
 * 평상시 루프백 장치만 대기시켜 **CPU 및 센서 배터리 소모 0% 유지**.
 * 브라우저나 앱이 `/dev/video0`을 여는 순간 밀리초 단위로 파이프라인을 작동시키고 닫으면 즉시 센서 전원 차단.
+
+### 6. 생생한 색감 보정 (채도 1.3 기본 적용)
+* `camera-relay.service`에 `RELAY_COLOR_FILTER="videobalance saturation=1.3"` 환경변수를 주입하여, 리눅스 SoftISP의 우중충하고 창백한 기본 색감을 추가 리소스 소모 없이 자연스럽고 화사하게 보정.
 
 ---
 

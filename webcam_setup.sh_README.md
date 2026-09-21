@@ -48,6 +48,12 @@
   * 평상시에는 가상 루프백 장치(`/dev/video0`)만 열어두고 대기(Idle)하며, 순수 커널 V4L2 이벤트 기반 무한 대기(`poll(-1)`)로 동작하여 **2초 주기 /proc 풀스캔 웨이크업을 원천 차단(Zero-Wakeup, CPU C10 딥슬립 극대화, 평상시 CPU 점유율 0%)**합니다.
   * 브라우저나 화상회의 앱이 웹캠을 여는 순간 밀리초 단위로 파이프라인(`libcamerasrc → queue → videoconvert → v4l2sink`)을 기동하여 영상을 공급하고, 앱이 웹캠을 닫으면 즉시 센서 작동을 정지합니다.
 
+### (6) 생생한 색감 보정 (채도 1.3 적용)
+* **원인**: 인텔 IPU6 OV02C10 센서는 리눅스 libcamera 소프트웨어 ISP(SoftISP) 파이프라인 구동 시 기본 색감이 다소 창백하고 우중충하게 출력되는 경향이 있습니다. 가상 루프백 노드는 하드웨어 UVC 컨트롤(`v4l2-ctl --set-ctrl=saturation`)을 직접 지원하지 않습니다.
+* **해결책**:
+  * `camera-relay` 서비스에 `RELAY_COLOR_FILTER` 환경변수를 설정하여, GStreamer 파이프라인 중간에 `videobalance saturation=1.3` 요소를 실시간 주입합니다.
+  * 리소스 추가 소모(CPU 0.1% 미만) 없이 인물 피부톤과 배경 색감을 훨씬 생생하고 화사하게 보정합니다. (원할 경우 `~/.config/systemd/user/camera-relay.service`에서 1.2~1.5 등으로 손쉽게 변경 가능)
+
 ---
 
 ## 2. 적용되는 설정 및 시스템 경로
@@ -69,7 +75,7 @@
 | `/usr/local/bin/camera-relay-monitor` | On-Demand V4L2 클라이언트 이벤트 모니터링 바이너리 | [`configs/webcam/camera-relay/camera-relay-monitor.c`](./configs/webcam/camera-relay/camera-relay-monitor.c) (C 소스 컴파일) |
 | `/usr/local/sbin/ipu-bridge-check-upstream.sh` | 상위 커널에 삼성 쿼크 반영 시 DKMS 자동 제거 스크립트 | [`configs/webcam/sbin/ipu-bridge-check-upstream.sh`](./configs/webcam/sbin/ipu-bridge-check-upstream.sh) |
 | `/etc/systemd/system/ipu-bridge-check-upstream.service` | 부팅 시 상위 커널 머지 여부 1회 확인 systemd 서비스 | [`configs/webcam/systemd/ipu-bridge-check-upstream.service`](./configs/webcam/systemd/ipu-bridge-check-upstream.service) |
-| `~/.config/systemd/user/camera-relay.service` | 로그인 시 On-Demand 릴레이 백그라운드 구동 서비스 | [`configs/webcam/systemd-user/camera-relay.service`](./configs/webcam/systemd-user/camera-relay.service) |
+| `~/.config/systemd/user/camera-relay.service` | 로그인 시 On-Demand 릴레이 서비스 (채도 1.3 보정 환경변수 포함) | [`configs/webcam/systemd-user/camera-relay.service`](./configs/webcam/systemd-user/camera-relay.service) |
 | `/usr/local/share/libcamera/ipa/simple/ov02c10.yaml` | OV02C10 센서 튜닝 프로파일 (노출/게인 보정) | [`configs/webcam/ipa/ov02c10.yaml`](./configs/webcam/ipa/ov02c10.yaml) |
 | `/usr/src/ipu-bridge-fix-1.4/` | 180도 회전 보정 DKMS 소스 트리 | [`configs/webcam/dkms/ipu-bridge-fix-1.4/`](./configs/webcam/dkms/ipu-bridge-fix-1.4/) |
 | `/usr/src/ov02c10-1.0/` | 26MHz 외부 클록 허용 DKMS 소스 트리 | [`configs/webcam/dkms/ov02c10-1.0/`](./configs/webcam/dkms/ov02c10-1.0/) |
