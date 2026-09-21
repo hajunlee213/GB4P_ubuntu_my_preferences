@@ -54,8 +54,11 @@ sudo ./webcam_setup.sh
 ```
 > 180도 뒤집힘 하드웨어 보정(ipu-bridge DKMS), 크롬/Chromium 인식(`exclusive_caps=1`), 부팅 레이스 컨디션 방지(IPU6 펌웨어 램디스크 번들링), 26MHz 클록 에러 해결 및 On-Demand 초절전 백그라운드 Relay 서비스를 복원합니다. (순정 복구: `sudo ./webcam_setup.sh --restore`)
 
-### 8. 지문인식 센서 재부팅 인식 수정 패치 (`libfprint`)
-> 갤럭시 북4 프로(Egis `1c7a:05a1`)에서 우분투 재부팅 시 등록된 지문이 유실/거부되는 문제를 해결하는 SDCP 세션 및 공개키 보존 패치입니다. 상세 적용 방법은 `libfprint_egismoc_sdcp_reboot_fix.md` 문서를 참고하세요.
+### 8. 지문인식 센서 재부팅 수정 및 PAM 옵션 최적화 (`libfprint`, `pam_fprint_tuning.sh`)
+```bash
+sudo ./pam_fprint_tuning.sh
+```
+> 우분투 기본 1회 시도/10초 타임아웃 제한을 업스트림 표준인 **3회 시도/30초 타임아웃**(`max-tries=3 timeout=30`)으로 최적화합니다. 지문 센서 재부팅 인식 수정 패치는 `libfprint_egismoc_sdcp_reboot_fix.md` 문서를 참고하세요.
 
 ---
 
@@ -358,6 +361,8 @@ GB4P_ubuntu_my_preferences/
 ├── driver_power_patch.sh_README.md # 드라이버 패치 & 전력 최적화 상세 설명서
 ├── webcam_setup.sh                # 웹캠 드라이버 & On-Demand Relay 복원 스크립트
 ├── webcam_setup.sh_README.md       # 웹캠 패치 및 릴레이 상세 설명서
+├── pam_fprint_tuning.sh           # PAM 지문인식(3회/30초) 옵션 최적화 스크립트
+├── pam_fprint_tuning.sh_README.md # PAM 지문인식 옵션 최적화 상세 설명서
 ├── libfprint_egismoc_sdcp_reboot_fix.md    # 지문인식 센서(Egis) 재부팅 키 유지 패치 문서
 ├── libfprint_egismoc_sdcp_reboot_fix.patch # 지문인식 센서 재부팅 시 등록 정보 보존 패치
 ├── configs/
@@ -421,10 +426,13 @@ GB4P_ubuntu_my_preferences/
 │   │   └── local-overrides.quirks    # 터치패드 팜리젝션 & DWT quirks
 │   ├── keyd/
 │   │   └── default.conf              # Alt_R/Ctrl_R -> 한영/한자 키 매핑
+│   ├── pam/
+│   │   └── fprintd                   # PAM 지문인식 3회/30초 프로필 템플릿
 │   └── touchpad-edge-motion/
 │       ├── edge_motion.py            # 탭 앤 드래그 엣지 모션 데몬 소스
 │       └── touchpad-edge-motion.service # systemd 서비스 유닛 파일
 ├── scripts/
+│   ├── setup-pam-fprint.sh           # PAM fprintd 설정 및 pam-auth-update 갱신
 │   ├── setup-webcam.sh               # 웹캠 드라이버 & Relay 환경 복원
 │   ├── restore-webcam.sh             # 웹캠 드라이버 & Relay 순정 롤백
 │   ├── fix-i915-race-condition.sh    # i915 Early KMS 부팅 레이스 컨디션 해결 스크립트
