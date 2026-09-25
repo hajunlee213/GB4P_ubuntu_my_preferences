@@ -60,6 +60,12 @@ sudo ./pam_fprint_tuning.sh
 ```
 > 우분투 기본 1회 시도/10초 타임아웃 제한을 업스트림 표준인 **3회 시도/30초 타임아웃**(`max-tries=3 timeout=30`)으로 최적화합니다. 지문 센서 재부팅 인식 수정 패치는 `libfprint_egismoc_sdcp_reboot_fix.md` 문서를 참고하세요.
 
+### 9. zram 압축 스왑 & SSD 수명 보호 복원 (`zram_swap.sh`)
+```bash
+sudo ./zram_swap.sh
+```
+> RAM 내 실시간 압축(zstd) 기반 8GB 스왑 장치(`systemd-zram-generator`)를 구성하고 우선순위(100)를 높게 설정하여, SSD 스왑 쓰기 마모(TBW 소모) 및 I/O 프리징을 원천 차단하고 기존 디스크 스왑(`/swap.img`, 우선순위 -1)을 후방 지원으로 유지합니다. (순정 복구: `sudo ./zram_swap.sh --restore`)
+
 ---
 
 ## power_consumption (전력 소모 & 발열 튜닝 상세)
@@ -345,6 +351,28 @@ OLED 패널에서 다크모드 사용 시 발생하는 극단적인 명암비(�
 
 ---
 
+## zram_swap (zram 압축 RAM 스왑 & SSD 수명 보호 상세)
+
+갤럭시 북4 프로(NT960XGK / Meteor Lake) 및 NVMe SSD 장착 기기에서 디스크 스왑 쓰기로 인한 낸드 플래시 마모(TBW 소모)를 억제하고, 메모리 부족 시 발생하는 디스크 I/O 병목 및 시스템 프리징(Thrashing)을 방지하기 위한 RAM 압축 가상 스왑 최적화 설정입니다.
+
+### 1. NVMe SSD 수명 보호 & 스왑 쓰래싱(Thrashing) 원천 차단
+* **문제점**:
+  * 우분투 기본 디스크 스왑(`/swap.img`)은 메모리 경합 시 SSD에 기가바이트 단위의 낸드 플래시 쓰기 작업을 유발하여 TBW 수명을 단축시킵니다.
+  * SSD I/O 지연으로 인해 스왑 발생 시 마우스와 전체 데스크톱 환경이 일시적으로 멈추는 프리징 현상이 발생합니다.
+* **해결책**:
+  * RAM 내부에서 실시간 압축을 수행하는 `zram` 장치(`/dev/zram0`)를 구성하여 모든 스왑 작업을 메모리 대역폭(수십 GB/s) 수준의 초고속으로 처리합니다.
+
+### 2. 8GB zstd 고압축 스왑 (`systemd-zram-generator`)
+* **할당 크기**: `zram-size = 8192` (16GB RAM의 약 50%인 8GB 할당)
+* **압축 알고리즘**: `zstd` (lzo/lz4 대비 압축률이 뛰어나며, 메테오레이크 14코어 환경에서 CPU 오버헤드 없이 초저지연 동작)
+* **실질 효과**: 2~3배의 실시간 압축률을 통해 실제 2.5~3.5GB 수준의 물리 메모리 점유만으로 최대 8GB에 달하는 메모리 여유 공간을 확보합니다.
+
+### 3. 스왑 우선순위(Priority 100) 계층화
+* **`/dev/zram0` (우선순위 100)**: 디스크 스왑보다 높은 우선순위로 모든 스왑 I/O를 최우선 흡수.
+* **`/swap.img` (우선순위 -1)**: zram 8GB가 100% 모두 소진되는 극한 상황에서만 동작하는 최후의 안전 백업(후방 지원)으로 유지.
+
+---
+
 ## 프로젝트 구조
 
 ```
@@ -366,6 +394,8 @@ GB4P_ubuntu_my_preferences/
 ├── webcam_setup.sh_README.md       # 웹캠 패치 및 릴레이 상세 설명서
 ├── pam_fprint_tuning.sh           # PAM 지문인식(3회/30초) 옵션 최적화 스크립트
 ├── pam_fprint_tuning.sh_README.md # PAM 지문인식 옵션 최적화 상세 설명서
+├── zram_swap.sh                   # zram 압축 스왑 & SSD 수명 보호 복원 스크립트
+├── zram_swap.sh_README.md          # zram 압축 스왑 패치 상세 설명서
 ├── libfprint_egismoc_sdcp_reboot_fix.md    # 지문인식 센서(Egis) 재부팅 키 유지 패치 문서
 ├── libfprint_egismoc_sdcp_reboot_fix.patch # 지문인식 센서 재부팅 시 등록 정보 보존 패치
 ├── configs/
@@ -431,10 +461,14 @@ GB4P_ubuntu_my_preferences/
 │   │   └── default.conf              # Alt_R/Ctrl_R -> 한영/한자 키 매핑
 │   ├── pam/
 │   │   └── fprintd                   # PAM 지문인식 3회/30초 프로필 템플릿
+│   ├── zram/
+│   │   └── zram-generator.conf       # 8GB zstd 스왑 및 우선순위 100 설정
 │   └── touchpad-edge-motion/
 │       ├── edge_motion.py            # 탭 앤 드래그 엣지 모션 데몬 소스
 │       └── touchpad-edge-motion.service # systemd 서비스 유닛 파일
 ├── scripts/
+│   ├── setup-zram-swap.sh            # zram-generator 설정 및 압축 스왑 활성화
+│   ├── restore-zram-swap.sh          # zram 압축 스왑 순정 롤백
 │   ├── setup-pam-fprint.sh           # PAM fprintd 설정 및 pam-auth-update 갱신
 │   ├── setup-webcam.sh               # 웹캠 드라이버 & Relay 환경 복원
 │   ├── restore-webcam.sh             # 웹캠 드라이버 & Relay 순정 롤백
