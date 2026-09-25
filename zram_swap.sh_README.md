@@ -25,7 +25,9 @@
 | 경로 | 역할 | 설명 |
 | :--- | :--- | :--- |
 | `configs/zram/zram-generator.conf` | 저장소 내 zram 설정 템플릿 | 8GB 크기, zstd 알고리즘, 우선순위 100 정의 |
+| `configs/sysctl/99-vm-zram.conf` | 저장소 내 sysctl 설정 템플릿 | `vm.swappiness = 100` 정의 |
 | `/etc/systemd/zram-generator.conf` | 시스템 zram-generator 설정 파일 | 부팅 시 systemd가 zram 디바이스를 동적 생성하도록 지시 |
+| `/etc/sysctl.d/99-vm-zram.conf` | 시스템 커널 파라미터 설정 파일 | zram 메모리 압축을 적극 활용하도록 swappiness 100 영구 지정 |
 | `/dev/zram0` | 커널 가상 블록 디바이스 | RAM 내에 생성된 압축 스왑 파티션 장치 |
 | `dev-zram0.swap` | systemd 스왑 마운트 유닛 | `/dev/zram0`을 스왑 영역으로 마운트 및 관리 |
 | `systemd-zram-setup@zram0.service` | zram 초기화 서비스 | `/dev/zram0`의 디스크 크기 및 압축 알고리즘 초기화 |
@@ -34,7 +36,7 @@
 
 ## 3. 주요 파라미터 및 원리
 
-### `/etc/systemd/zram-generator.conf` 설정값 분석
+### 1) `/etc/systemd/zram-generator.conf` 설정값 분석
 
 ```ini
 [zram0]
@@ -53,6 +55,14 @@ swap-priority = 100
    - 리눅스 커널의 스왑 우선순위 범위는 `-1`부터 `32767`까지입니다.
    - 우분투 기본 디스크 스왑(`/swap.img`)의 우선순위는 `-1`로 최하위입니다.
    - zram의 우선순위를 `100`으로 지정함으로써 커널 스왑 서브시스템은 **항상 zram0으로 먼저 스왑아웃**하며, 8GB zram이 100% 가득 찬 극한의 상황에서만 NVMe 스왑 파일(`/swap.img`)을 fallback(후방 지원)으로 사용합니다.
+
+### 2) `/etc/sysctl.d/99-vm-zram.conf` (`vm.swappiness = 100`)
+
+* **배경 및 원리**:
+  - 리눅스 기본값은 `vm.swappiness = 60`으로, 디스크 스왑의 느린 I/O 속도 때문에 가급적 스왑아웃을 자제하고 파일 캐시(Page Cache)를 버리는 정책을 취합니다.
+  - 하지만 zram은 **디스크 I/O 없이 초고속 RAM 버스 대역폭**으로 동작합니다.
+  - `vm.swappiness`를 **`100`**으로 상향하면 커널이 유휴 익명 메모리(오래된 브라우저 탭, 백그라운드 프로세스 등)를 망설임 없이 zram으로 실시간 압축하여 보관합니다.
+  - 그 결과, 실제 파일 시스템 입출력 캐시(File-backed Cache)가 물리 RAM에 넉넉히 보존되어 실행 중인 애플리케이션의 체감 반응성과 전반적인 멀티태스킹 부드러움이 크게 향상됩니다.
 
 ---
 
@@ -100,6 +110,12 @@ sudo ./zram_swap.sh
      /swap.img  file        4G  ...   -1
      ```
 
+3. **커널 swappiness 값 확인**:
+   ```bash
+   sysctl vm.swappiness
+   ```
+   * 정상 출력: `vm.swappiness = 100`
+
 ### 원클릭 순정 롤백
 
 ```bash
@@ -127,7 +143,12 @@ sudo bash scripts/restore-zram-swap.sh
    sudo zramctl --reset /dev/zram0
    sudo apt-get remove -y systemd-zram-generator
    ```
-4. 디스크 스왑 상태 확인:
+4. swappiness 순정 기본값(60) 복구:
+   ```bash
+   sudo rm -f /etc/sysctl.d/99-vm-zram.conf
+   sudo sysctl -w vm.swappiness=60
+   ```
+5. 디스크 스왑 상태 확인:
    ```bash
    swapon --show
    ```

@@ -56,6 +56,18 @@ if ! swapon --show | grep -q "/dev/zram0"; then
     swapon /dev/zram0 2>/dev/null || true
 fi
 
+# 4. sysctl vm.swappiness = 100 적용 (zram 메모리 압축 활용 극대화)
+SYSCTL_SRC="${PROJECT_ROOT}/configs/sysctl/99-vm-zram.conf"
+SYSCTL_DEST="/etc/sysctl.d/99-vm-zram.conf"
+
+if [ -f "${SYSCTL_SRC}" ]; then
+    echo "-> /etc/sysctl.d/99-vm-zram.conf 복사 및 vm.swappiness=100 적용..."
+    mkdir -p /etc/sysctl.d
+    cp "${SYSCTL_SRC}" "${SYSCTL_DEST}"
+    chmod 644 "${SYSCTL_DEST}"
+    sysctl -p "${SYSCTL_DEST}" >/dev/null 2>&1 || sysctl -w vm.swappiness=100 >/dev/null
+fi
+
 echo ""
 echo "[+] zram 디바이스 상태:"
 zramctl || true
@@ -63,4 +75,7 @@ echo ""
 echo "[+] 전체 스왑 우선순위 상태:"
 swapon --show || true
 echo ""
-echo "[SUCCESS] zram 압축 스왑 설정이 성공적으로 완료되었습니다."
+echo "[+] 커널 swappiness 설정:"
+sysctl vm.swappiness
+echo ""
+echo "[SUCCESS] zram 압축 스왑 및 swappiness 최적화 설정이 성공적으로 완료되었습니다."

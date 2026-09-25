@@ -64,7 +64,7 @@ sudo ./pam_fprint_tuning.sh
 ```bash
 sudo ./zram_swap.sh
 ```
-> RAM 내 실시간 압축(zstd) 기반 8GB 스왑 장치(`systemd-zram-generator`)를 구성하고 우선순위(100)를 높게 설정하여, SSD 스왑 쓰기 마모(TBW 소모) 및 I/O 프리징을 원천 차단하고 기존 디스크 스왑(`/swap.img`, 우선순위 -1)을 후방 지원으로 유지합니다. (순정 복구: `sudo ./zram_swap.sh --restore`)
+> RAM 내 실시간 압축(zstd) 기반 8GB 스왑 장치(`systemd-zram-generator`)를 구성하고 우선순위(100)와 커널 `vm.swappiness=100`을 설정하여, SSD 스왑 쓰기 마모(TBW 소모) 및 I/O 프리징을 원천 차단하고 기존 디스크 스왑(`/swap.img`, 우선순위 -1)을 후방 지원으로 유지합니다. (순정 복구: `sudo ./zram_swap.sh --restore`)
 
 ---
 
@@ -371,6 +371,10 @@ OLED 패널에서 다크모드 사용 시 발생하는 극단적인 명암비(�
 * **`/dev/zram0` (우선순위 100)**: 디스크 스왑보다 높은 우선순위로 모든 스왑 I/O를 최우선 흡수.
 * **`/swap.img` (우선순위 -1)**: zram 8GB가 100% 모두 소진되는 극한 상황에서만 동작하는 최후의 안전 백업(후방 지원)으로 유지.
 
+### 4. 커널 swappiness 최적화 (`vm.swappiness = 100`)
+* **목적**: `/etc/sysctl.d/99-vm-zram.conf`에 `vm.swappiness = 100` 지정 (기본값 60).
+* **효과**: 디스크 I/O가 없는 초고속 RAM 압축 특성을 활용하여 유휴 익명 페이지를 적극적으로 zram에 압축 보관하고, 물리 메모리의 파일 시스템 캐시를 풍부하게 유지하여 시스템 반응성 및 멀티태스킹 체감 성능 극대화.
+
 ---
 
 ## 프로젝트 구조
@@ -424,7 +428,8 @@ GB4P_ubuntu_my_preferences/
 │   │   └── edid                   # initramfs-tools 램디스크 펌웨어 훅
 │   ├── sysctl/
 │   │   ├── 99-nmi-watchdog.conf   # NMI Watchdog 인터럽트 절전 파라미터
-│   │   └── 99-ssd-power-saving.conf  # SSD 깨움 지연 커널 파라미터
+│   │   ├── 99-ssd-power-saving.conf  # SSD 깨움 지연 커널 파라미터
+│   │   └── 99-vm-zram.conf        # zram 스왑 압축 활용 극대화 (swappiness=100)
 │   ├── systemd/
 │   │   └── powertop.service       # PowerTOP auto-tune systemd 서비스 유닛
 │   ├── udev/

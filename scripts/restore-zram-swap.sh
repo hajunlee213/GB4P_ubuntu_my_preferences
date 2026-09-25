@@ -49,10 +49,22 @@ if dpkg -s systemd-zram-generator &>/dev/null; then
     apt-get remove -y systemd-zram-generator
 fi
 
+# 7. sysctl swappiness 순정 기본값(60) 복구
+SYSCTL_DEST="/etc/sysctl.d/99-vm-zram.conf"
+if [ -f "${SYSCTL_DEST}" ]; then
+    rm -f "${SYSCTL_DEST}"
+    echo "[+] 삭제 완료: ${SYSCTL_DEST}"
+fi
+sysctl -w vm.swappiness=60 >/dev/null 2>&1 || true
+echo "[+] vm.swappiness = 60 (우분투 기본값) 복구."
+
 echo ""
 echo "[+] 현재 스왑 상태 확인:"
 swapon --show || true
 echo ""
+echo "[+] 현재 swappiness 설정:"
+sysctl vm.swappiness || true
+echo ""
 echo "======================================================================"
-echo " [SUCCESS] zram 스왑 롤백이 완료되어 순정 디스크 스왑 상태로 복구되었습니다."
+echo " [SUCCESS] zram 스왑 및 swappiness 롤백이 완료되어 순정 상태로 복구되었습니다."
 echo "======================================================================"
