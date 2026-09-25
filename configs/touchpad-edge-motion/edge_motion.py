@@ -243,6 +243,7 @@ class EdgeMotionDaemon:
 
         self.running = False
         self.motion_thread = None
+        self.motion_wakeup = threading.Event()
 
     def is_in_edge_margin(self, x, y):
         """Check if coordinates fall inside the edge margin."""
@@ -304,18 +305,23 @@ class EdgeMotionDaemon:
                     if self.debug and (now - self.last_debug_log_time >= 0.3):
                         self.last_debug_log_time = now
                         print(f"[Edge Motion ACTIVE] step=({step_x}, {step_y}) (pos: x={self.cur_x:.0f}, y={self.cur_y:.0f})")
+
+                now_time = time.time()
+                sleep_time = next_wakeup - now_time
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
+                else:
+                    # Prevent rapid-fire catchup after suspend/lag
+                    next_wakeup = now_time
+                next_wakeup += self.interval
+
             else:
                 self.accum_x = 0.0
                 self.accum_y = 0.0
-
-            now_time = time.time()
-            sleep_time = next_wakeup - now_time
-            if sleep_time > 0:
-                time.sleep(sleep_time)
-            else:
-                # Prevent rapid-fire catchup after suspend/lag
-                next_wakeup = now_time
-            next_wakeup += self.interval
+                # Idle state: wait for a wakeup event instead of 60Hz polling
+                self.motion_wakeup.wait(timeout=1.0)
+                self.motion_wakeup.clear()
+                next_wakeup = time.time() + self.interval
 
     def _handle_touch_down(self, now):
         """Handle finger landing on touchpad."""
@@ -413,6 +419,7 @@ class EdgeMotionDaemon:
                             
                             # Parse all read events
                             for sec, usec, etype, ecode, evalue in struct.iter_unpack(EVENT_FORMAT, data):
+                                self.motion_wakeup.set()
 
                                 if etype == EV_KEY:
                                     if ecode == BTN_LEFT:
