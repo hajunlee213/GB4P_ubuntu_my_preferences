@@ -50,6 +50,20 @@ class PowerSdrGovernor:
     def _init_dbus(self):
         try:
             self.session_bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+            # Try to connect immediately if service is already running
+            try:
+                self.display_proxy = Gio.DBusProxy.new_sync(
+                    self.session_bus,
+                    Gio.DBusProxyFlags.NONE,
+                    None,
+                    'org.gnome.Mutter.DisplayConfig',
+                    '/org/gnome/Mutter/DisplayConfig',
+                    'org.gnome.Mutter.DisplayConfig',
+                    None
+                )
+            except Exception:
+                pass
+
             # Watch for GNOME Shell / Mutter DisplayConfig service appearing on session bus
             self._watcher_id = Gio.bus_watch_name(
                 Gio.BusType.SESSION,
@@ -207,23 +221,24 @@ class PowerSdrGovernor:
             cur_mode_id, cur_w, cur_h, cur_rate, cur_rr_mode = current_modes[target_connector]
             cur_cm = current_color_modes.get(target_connector, 0)
 
-            # Check if already in desired rate and sdr-native (color-mode == 2)
-            if round(cur_rate) == desired_rate and cur_cm == 2:
-                logger.debug(f"Already at {desired_rate}Hz VRR with sdr-native")
-                return False
-
             # Find target mode matching resolution and desired refresh rate
             candidates = [
                 m for m in target_monitor_modes
                 if m[1] == cur_w and m[2] == cur_h and round(m[3]) == desired_rate
             ]
-            # Prefer matching VRR mode
+
+            # Always prioritize VRR ('variable') mode to enforce VRR injection even if previously turned off
             target_mode_tuple = next(
-                (m for m in candidates if m[6].get('refresh-rate-mode', 'fixed') == cur_rr_mode),
+                (m for m in candidates if m[6].get('refresh-rate-mode') == 'variable'),
                 candidates[0] if candidates else None
             )
 
             target_mode_id = target_mode_tuple[0] if target_mode_tuple else cur_mode_id
+
+            # Check if already in target mode (resolution, rate, VRR) and sdr-native (color-mode == 2)
+            if cur_mode_id == target_mode_id and cur_cm == 2:
+                logger.debug(f"Already at target mode {target_mode_id} with sdr-native")
+                return False
 
             logger.info(f"Applying {power_str} -> {target_mode_id} + sdr-native [Reason: {reason}]")
 
@@ -289,6 +304,10 @@ class PowerSdrGovernor:
 
     def run(self):
         logger.info(f"Starting Power Refresh & SDR Governor Daemon (AC: {AC_REFRESH_RATE}Hz VRR, Battery: {BATTERY_REFRESH_RATE}Hz VRR)...")
+
+        # Initial display check if DisplayConfig proxy is already ready on startup
+        if self.display_proxy:
+            self.update_display("Daemon startup")
 
         def sig_handler(sig, frame):
             if self.loop and self.loop.is_running():

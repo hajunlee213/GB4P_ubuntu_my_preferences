@@ -71,12 +71,16 @@ graph TD
   - 주사율 변경 요청 패킷 내 모니터 속성에 `"color-mode": GLib.Variant("u", 2)` (`sdr-native`)를 함께 묶어서 전송합니다.
   - 주사율이 변경된 직후 sRGB가 풀려버리는 타이밍 이슈(Race condition)를 구조적으로 원천 차단합니다.
 
-### (3) 완전한 이벤트 드리븐 (Event-driven) 아키텍처 (CPU 점유율 0%)
+### (3) 가변 주사율(VRR) 상시 인젝션 및 유지 보장
+- 시스템 설정 GUI 조작, 외부 테스트, 또는 일시적 오류로 인해 화면이 고정(Fixed) 주사율 모드로 풀려 VRR이 비활성화되더라도, 데몬이 이를 방치하지 않고 **상시 VRR(`refresh-rate-mode: variable`, `+vrr`) 모드를 최우선 탐색하여 강제 인젝션**합니다.
+- 현재 화면 모드와 목표 모드(`+vrr`)를 직접 대조하여, VRR이 꺼져 있는 경우 즉시 `+vrr` 모드를 재주입하여 부드러운 화면과 저발열/배터리 절약을 동시에 확보합니다.
+
+### (4) 완전한 이벤트 드리븐 (Event-driven) 아키텍처 (CPU 점유율 0%)
 - 주기적으로 루프를 돌며 상태를 폴링(Polling)하지 않습니다.
 - D-Bus 신호 수신 시에만 즉시 깨어나 처리합니다:
   1. `org.freedesktop.UPower`의 `PropertiesChanged`: 충전기 꽂음/뽑힘 즉각 반응
   2. `org.freedesktop.login1.Manager`의 `PrepareForSleep`: 노트북 덮개를 열고 절전 모드에서 깨어날 때 1초 안정화 후 자동 보정
-  3. `Gio.bus_watch_name('org.gnome.Mutter.DisplayConfig')`: 부팅 및 데스크톱 로그인 직후 Mutter 컴포지터가 세션 버스에 등록되는 순간을 대기하여 초기 화면 설정 즉시 주입
+  3. `Gio.bus_watch_name('org.gnome.Mutter.DisplayConfig')`: 부팅 및 데스크톱 로그인 직후 Mutter 컴포지터가 세션 버스에 등록되는 순간을 대기하여 초기 화면 설정 즉시 주입 (데몬 기동 시 이미 버스가 준비되어 있으면 즉시 감지하여 적용)
 
 ---
 
