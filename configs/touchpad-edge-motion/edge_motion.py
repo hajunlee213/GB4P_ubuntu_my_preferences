@@ -417,9 +417,10 @@ class EdgeMotionDaemon:
                             if not data:
                                 break
                             
+                            self.motion_wakeup.set()
+
                             # Parse all read events
                             for sec, usec, etype, ecode, evalue in struct.iter_unpack(EVENT_FORMAT, data):
-                                self.motion_wakeup.set()
 
                                 if etype == EV_KEY:
                                     if ecode == BTN_LEFT:
@@ -462,6 +463,7 @@ class EdgeMotionDaemon:
             print("\n[Info] Stopping daemon...")
         finally:
             self.running = False
+            self.motion_wakeup.set()
             if self.motion_thread:
                 self.motion_thread.join(timeout=1.0)
             self.uinput.close()
