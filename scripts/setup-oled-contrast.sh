@@ -61,6 +61,7 @@ PROFILES=(
     "oled_medium_contrast.icc"
     "oled_medium_pure_black.icc"
     "oled_low_pure_black.icc"
+    "oled_lower_pure_black.icc"
 )
 
 # 구버전 파일 정리

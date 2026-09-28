@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "========================================================="
 echo " Galaxy Book 4 Pro (GB4P) OLED 다크모드 대비 완화 설정 복원"
-echo " (oled_contrast: 화이트포인트 80~90% & 블랙 0.0~4.0%)"
+echo " (oled_contrast: 화이트포인트 70~90% & 블랙 0.0~4.0%)"
 echo "========================================================="
 
 # 롤백 옵션 (--restore 또는 --uninstall) 처리
@@ -21,7 +21,7 @@ echo ""
 echo "========================================================="
 echo " [SUCCESS] OLED 다크모드 대비 완화 설정 복원이 완료되었습니다!"
 echo "========================================================="
-echo " 1. 맞춤형 OLED Eye Care ICC 5종 프로파일 설치 완료:
+echo " 1. 맞춤형 OLED Eye Care ICC 6종 프로파일 설치 완료:
     [화이트 90.0% 라인업 (High)]
     - oled_high_contrast.icc   : 화이트 90.0%, 블랙 +2.0% (기본 활성화, 눈+전력 균형) [추천]
     - oled_high_pure_black.icc : 화이트 90.0%, 블랙  0.0% (밝은 가독성 + 다크모드 리얼블랙 완전 소등)
@@ -30,6 +30,8 @@ echo " 1. 맞춤형 OLED Eye Care ICC 5종 프로파일 설치 완료:
     - oled_medium_pure_black.icc : 화이트 85.0%, 블랙  0.0% (전력/번인 최우선, 리얼블랙 완전 소등)
     [화이트 80.0% 라인업 (Low)]
     - oled_low_pure_black.icc    : 화이트 80.0%, 블랙  0.0% (야간/암실 눈부심 완화, 리얼블랙 완전 소등)
+    [화이트 70.0% 라인업 (Lower)]
+    - oled_lower_pure_black.icc  : 화이트 70.0%, 블랙  0.0% (극저조도/암실 야간 최적, 리얼블랙 완전 소등)
     - 위치: ~/.local/share/icc/
  2. VCGT (Video Card Gamma Table) 1:1:1 무왜곡 하드웨어 LUT:
     - 색 틴트 왜곡(보라/녹색 변색) 0% 완전 보존
@@ -41,6 +43,7 @@ echo " 1. 맞춤형 OLED Eye Care ICC 5종 프로파일 설치 완료:
     - oled-mode medium      : 화이트 85%, 블랙 +4.0% (눈 편안함 최우선)
     - oled-mode medium-pure : 화이트 85%, 블랙  0.0% (전력/번인 최우선)
     - oled-mode low-pure    : 화이트 80%, 블랙  0.0% (야간/암실 눈부심 완화)
+    - oled-mode lower-pure  : 화이트 70%, 블랙  0.0% (극저조도/암실 야간 최적, 별칭: lower)
     - oled-mode custom <블랙%> <화이트%> : 자유 튜닝 (예: oled-mode custom 2.0 90)
     - oled-mode reset       : 순정 공장 기본값(100% 화이트 / 0% 리얼블랙) 복원
     - oled-mode status      : 현재 적용된 컬러 프로파일 확인"

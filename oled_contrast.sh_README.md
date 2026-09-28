@@ -18,7 +18,7 @@
 ### 🎯 패치의 목적
 - 패널 고유의 EDID 색상 보정 정보는 100% 온전히 유지하면서, **하드웨어 16비트 VCGT(Video Card Gamma Table) LUT**를 주입하여:
   1. **블랙 리프트(+2.0% ~ +4.0%) 또는 리얼 블랙(0.0%)**: 취향에 따라 리얼 블랙을 미세하게 띄워(8비트 기준 약 `5`~`10`) 스미어링을 억제하거나, 0.0% 완전 소등으로 배터리/번인을 방어.
-  2. **화이트포인트 감소(80.0% ~ 90.0%)**: 순백색 글자의 피크 광량을 안정적인 영역으로 낮추어(8비트 기준 약 `204`~`230`), 글자 가독성은 또렷하게 유지하면서 눈부심 원천 차단.
+  2. **화이트포인트 감소(70.0% ~ 90.0%)**: 순백색 글자의 피크 광량을 안정적인 영역으로 낮추어(8비트 기준 약 `179`~`230`), 글자 가독성은 또렷하게 유지하면서 눈부심 원천 차단.
   3. **무왜곡 0% 틴트**: R, G, B 채널에 100% 동일한 선형 톤 램프 곡선을 주입하여 보라/녹색 틴트 왜곡이 일절 발생하지 않음.
 
 ---
@@ -32,6 +32,7 @@
 | **ICC 프로파일 (Medium Contrast)** | `~/.local/share/icc/oled_medium_contrast.icc` | 화이트 85.0%, 블랙 +4.0% (눈 편안함 최우선, 강한 대비 완화) |
 | **ICC 프로파일 (Medium Pure Black)** | `~/.local/share/icc/oled_medium_pure_black.icc` | 화이트 85.0%, 블랙 0.0% (기존 Pure Black에서 개명, 전력/번인 최우선) |
 | **ICC 프로파일 (Low Pure Black)** | `~/.local/share/icc/oled_low_pure_black.icc` | 화이트 80.0%, 블랙 0.0% (야간/암실 눈부심 완화, 리얼블랙 완전 소등) |
+| **ICC 프로파일 (Lower Pure Black)** | `~/.local/share/icc/oled_lower_pure_black.icc` | 화이트 70.0%, 블랙 0.0% (극저조도/암실 야간 최적, 리얼블랙 완전 소등) |
 | **커스텀 ICC 프로파일** | `~/.local/share/icc/oled_custom.icc` | `oled-mode custom` 실행 시 실시간 생성되는 프로파일 |
 | **CLI 제어 도구** | `~/.local/bin/oled-mode` | 모드 전환, 실시간 튜닝, 원복을 수행하는 실행 스크립트 |
 | **시스템 심볼릭 링크** | `/usr/local/bin/oled-mode` | 터미널 어디서나 `oled-mode`를 즉시 실행할 수 있는 링크 |
@@ -49,9 +50,9 @@ $$y = \text{black\_offset} + (\text{white\_max} - \text{black\_offset}) \times x
 - $x \in [0.0, 1.0]$: 애플리케이션이 요청하는 정규화된 입력 밝기 (0: 순수 블랙, 1: 순수 화이트)
 - $y \in [0.0, 1.0]$: 실제 디스플레이 패널로 출력되는 정규화된 16비트 LUT 출력값
 
-### 📊 5종 프리셋 프로파일 상세 비교
+### 📊 6종 프리셋 프로파일 상세 비교
 
-화이트포인트 3단계(High 90% / Medium 85% / Low 80%)와 블랙 레벨(Contrast 리프트 / Pure Black 소등)의 조합으로 구성됩니다:
+화이트포인트 4단계(High 90% / Medium 85% / Low 80% / Lower 70%)와 블랙 레벨(Contrast 리프트 / Pure Black 소등)의 조합으로 구성됩니다:
 
 | 분류 | 프로파일 | 블랙 오프셋 | 화이트 상한선 | 8비트 환산 | 주요 용도 및 권장 환경 |
 | :--- | :--- | :---: | :---: | :---: | :--- |
@@ -59,7 +60,8 @@ $$y = \text{black\_offset} + (\text{white\_max} - \text{black\_offset}) \times x
 | | **`High Pure Black`**<br>`oled-mode high-pure` | **`0.0%`** | **`90.0%`** | `0` $\rightarrow$ `0`<br>`255` $\rightarrow$ `230` | **선명한 가독성 + 다크모드 배터리 절약**.<br>화이트를 90%로 적절히 낮추면서 리얼 블랙(0 cd/m²) 완전 소등 유지 |
 | **Medium**<br>(화이트 85%) | **`Medium Contrast`**<br>`oled-mode medium` | **`+4.0%`** | **`85.0%`** | `0` $\rightarrow$ `10`<br>`255` $\rightarrow$ `217` | **눈의 편안함 & 스미어링 완전 제거 최우선**.<br>배경 소자가 4% 상시 발광하여 전력/번인 손해는 있으나 가장 부드러움 |
 | | **`Medium Pure Black`**<br>`oled-mode medium-pure` | **`0.0%`** | **`85.0%`** | `0` $\rightarrow$ `0`<br>`255` $\rightarrow$ `217` | **전력 절약 & 번인 방지 최우선** (기존 Pure Black).<br>차분한 85% 화이트 + 리얼 블랙 완전 소등(0W)으로 번인/배터리 극대화 |
-| **Low**<br>(화이트 80%) | **`Low Pure Black`**<br>`oled-mode low-pure` | **`0.0%`** | **`80.0%`** | `0` $\rightarrow$ `0`<br>`255` $\rightarrow$ `204` | **야간/암실 눈부심 완화 + 배터리 절약**.<br>화이트를 80%로 낮춰 저조도 환경에 최적화 + 리얼 블랙 완전 소등(0W) |
+| **Low**<br>(화이트 80%) | **`Low Pure Black`**<br>`oled-mode low-pure` | **`0.0%`** | **`80.0%`** | `0` $\rightarrow$ `0`<br>`255` $\rightarrow$ `204` | **야간/암실 눈부심 완화 + 배터리 절약**.<br>화이트를 80%로 낮춰 실사용 가독성 확보 + 리얼 블랙 완전 소등(0W) |
+| **Lower**<br>(화이트 70%) | **`Lower Pure Black`**<br>`oled-mode lower-pure` | **`0.0%`** | **`70.0%`** | `0` $\rightarrow$ `0`<br>`255` $\rightarrow$ `179` | **극저조도/암실 야간 최적 + 배터리 절약**.<br>화이트를 70%로 낮춰 불 꺼진 침실/야간 작업 시 눈부심 극소화 (별칭: `lower`) |
 | **기타** | **`Custom`** | 사용자 지정 | 사용자 지정 | 자유 튜닝 | `oled-mode custom <블랙%> <화이트%>` 로 즉시 미세조정 |
 | | **`Reset (순정)`** | `0.0%` | `100.0%` | `0` $\rightarrow$ `0`<br>`255` $\rightarrow$ `255` | 팩토리 기본값 복구 (100% 네이티브 광색역 출고 상태) |
 
@@ -84,14 +86,18 @@ oled-mode medium-pure
 # 5. Low Pure Black 적용 (화이트 80%, 블랙 0.0% - 야간/암실 눈부심 완화)
 oled-mode low-pure
 
+# --- [화이트 70.0% 라인업 (Lower)] ---
+# 6. Lower Pure Black 적용 (화이트 70%, 블랙 0.0% - 극저조도/암실 야간 최적)
+oled-mode lower-pure   # (또는 oled-mode lower)
+
 # --- [기타 도구] ---
-# 6. 실시간 커스텀 수치 생성 및 적용 (예: 블랙 2.0%, 화이트 92%)
+# 7. 실시간 커스텀 수치 생성 및 적용 (예: 블랙 2.0%, 화이트 92%)
 oled-mode custom 2.0 92
 
-# 7. 현재 적용 중인 컬러 프로파일 및 장치 확인
+# 8. 현재 적용 중인 컬러 프로파일 및 장치 확인
 oled-mode status
 
-# 8. 출고 순정 상태로 즉시 복원 (CTM 초기화 + 공장 EDID 프로파일 적용)
+# 9. 출고 순정 상태로 즉시 복원 (CTM 초기화 + 공장 EDID 프로파일 적용)
 oled-mode reset
 ```
 
@@ -135,6 +141,6 @@ oled-mode reset
 
 **롤백 스크립트의 동작 내용**:
 1. `oled-mode reset`을 호출하여 패널 순정 공장 출하 EDID 프로파일로 전환 및 Mutter CTM 초기화
-2. `colord` 디스플레이 장치 목록에서 등록된 OLED 맞춤 ICC 프로파일 5종 해제
+2. `colord` 디스플레이 장치 목록에서 등록된 OLED 맞춤 ICC 프로파일 6종 해제
 3. `~/.local/share/icc/`에 설치된 맞춤 프로파일 파일 삭제
 4. `~/.local/bin/oled-mode` 및 `/usr/local/bin/oled-mode` 파일 삭제

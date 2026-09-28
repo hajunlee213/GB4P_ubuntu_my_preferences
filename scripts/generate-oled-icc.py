@@ -161,6 +161,13 @@ def main():
             0.000,
             0.800
         )
+        make_profile(
+            src,
+            os.path.join(out_dir, "oled_lower_pure_black.icc"),
+            "OLED Eye Care - Lower Pure Black",
+            0.000,
+            0.700
+        )
 
 if __name__ == "__main__":
     main()
