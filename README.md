@@ -101,8 +101,8 @@ sudo ./zram_swap.sh
 * **AC 모드 (충전기 연결 시)**:
   * **터보 부스트**: ON (`no_turbo = 0`)
   * **클럭 상한선**: 80% (`max_perf_pct = 80`) - E-코어 ~3.0GHz * 8개 (최대 24.0 GHz·core의 강력한 멀티코어 성능)
-  * **에너지 정책**: EPP `balance_performance` (즉각적인 작업 반응성 유지)
-  * **삼성 팬/Gnome 모드**: `Balanced` (성능과 발열 밸런스)
+  * **에너지 정책**: EPP `power` (하드웨어 최저 전력 선호도 강제)
+  * **삼성 팬/Gnome 모드**: `Power Saver` / `low-power` (팬 회전 억제로 무소음 유지)
 * **DC 모드 (배터리 사용 시)**:
   * **터보 부스트**: ON (`no_turbo = 0`)
   * **클럭 상한선**: 70% (`max_perf_pct = 70`) - E-코어 ~2.5GHz * 8개 (총 20.0 GHz·core의 쾌적한 연산력)

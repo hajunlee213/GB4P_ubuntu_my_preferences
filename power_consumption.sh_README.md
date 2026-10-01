@@ -57,8 +57,8 @@ vm.laptop_mode = 5
   - 실효성 없이 TLB shootdown과 인터럽트로 깨어나는 SoC 타일 코어를 꺼서 SoC-Compute 타일 간 패브릭 인터커넥트 병목 및 슬립 낭비 원천 제거
 
 ### (3) AC/DC 자동 전환 시스템 (`/etc/udev/rules.d/99-power-profile-switch.rules`)
-- **🔌 충전기(AC) 연결 시**: 터보 부스트 ON (80% 클럭 제한) + 균형 모드 + EPP `balance_performance`
-  - E-코어 8개 ~3.0GHz 구동 (총 24.0 GHz·core 연산력으로 고부하/컴파일 시 쾌적한 반응성 제공)
+- **🔌 충전기(AC) 연결 시**: 터보 부스트 ON (80% 클럭 제한) + 절전 모드(Power Saver) + EPP `power`
+  - E-코어 8개 ~3.0GHz 구동 (총 24.0 GHz·core 연산력 제공, 최대 ~3.0GHz 성능을 확보하면서도 팬 회전을 억제하여 무소음 유지)
 - **🔋 배터리(DC) 전환 시**: 터보 부스트 ON (70% 클럭 제한) + 절전 모드(Power Saver) + EPP `power`
   - E-코어 8개 ~2.5GHz 구동 (총 20.0 GHz·core 연산력 제공, 전성비 최적 구간 ~2.5GHz를 활용하여 멀티태스킹 반응성과 저발열 최적 균형 달성, 팬 회전 억제로 모터 전력 절감 및 무소음 유지)
 
