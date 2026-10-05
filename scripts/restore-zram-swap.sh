@@ -49,22 +49,27 @@ if dpkg -s systemd-zram-generator &>/dev/null; then
     apt-get remove -y systemd-zram-generator
 fi
 
-# 7. sysctl swappiness 순정 기본값(60) 복구
-SYSCTL_DEST="/etc/sysctl.d/99-vm-zram.conf"
-if [ -f "${SYSCTL_DEST}" ]; then
-    rm -f "${SYSCTL_DEST}"
-    echo "[+] 삭제 완료: ${SYSCTL_DEST}"
-fi
+# 7. sysctl zram 커널 파라미터 순정 기본값 복구
+for conf in "/etc/sysctl.d/99-zram.conf" "/etc/sysctl.d/99-vm-zram.conf"; do
+    if [ -f "${conf}" ]; then
+        rm -f "${conf}"
+        echo "[+] 삭제 완료: ${conf}"
+    fi
+done
+
 sysctl -w vm.swappiness=60 >/dev/null 2>&1 || true
-echo "[+] vm.swappiness = 60 (우분투 기본값) 복구."
+sysctl -w vm.page-cluster=3 >/dev/null 2>&1 || true
+sysctl -w vm.watermark_boost_factor=15000 >/dev/null 2>&1 || true
+sysctl -w vm.watermark_scale_factor=10 >/dev/null 2>&1 || true
+echo "[+] 커널 파라미터 우분투 순정 기본값 복구 완료 (swappiness=60, page-cluster=3, watermark_boost=15000, watermark_scale=10)."
 
 echo ""
 echo "[+] 현재 스왑 상태 확인:"
 swapon --show || true
 echo ""
-echo "[+] 현재 swappiness 설정:"
-sysctl vm.swappiness || true
+echo "[+] 현재 커널 파라미터 확인:"
+sysctl vm.swappiness vm.page-cluster vm.watermark_boost_factor vm.watermark_scale_factor || true
 echo ""
 echo "======================================================================"
-echo " [SUCCESS] zram 스왑 및 swappiness 롤백이 완료되어 순정 상태로 복구되었습니다."
+echo " [SUCCESS] zram 스왑 및 커널 파라미터 롤백이 완료되어 순정 상태로 복구되었습니다."
 echo "======================================================================"

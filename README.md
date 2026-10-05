@@ -64,7 +64,7 @@ sudo ./pam_fprint_tuning.sh
 ```bash
 sudo ./zram_swap.sh
 ```
-> RAM 내 실시간 압축(zstd) 기반 8GB 스왑 장치(`systemd-zram-generator`)를 구성하고 우선순위(100)와 커널 `vm.swappiness=100`을 설정하여, SSD 스왑 쓰기 마모(TBW 소모) 및 I/O 프리징을 원천 차단하고 기존 디스크 스왑(`/swap.img`, 우선순위 -1)을 후방 지원으로 유지합니다. (순정 복구: `sudo ./zram_swap.sh --restore`)
+> RAM 내 실시간 압축(zstd) 기반 16GB 스왑 장치(`systemd-zram-generator`)를 구성하고 우선순위(100)와 커널 파라미터(`swappiness=150`, `page-cluster=0`, `watermark_boost=0`, `watermark_scale=125`)를 설정하여, SSD 스왑 쓰기 마모(TBW 소모) 및 I/O 프리징을 원천 차단하고 기존 디스크 스왑(`/swap.img`, 우선순위 -1)을 후방 지원으로 유지합니다. (순정 복구: `sudo ./zram_swap.sh --restore`)
 
 ---
 
@@ -366,18 +366,21 @@ OLED 패널에서 다크모드 사용 시 발생하는 극단적인 명암비(�
 * **해결책**:
   * RAM 내부에서 실시간 압축을 수행하는 `zram` 장치(`/dev/zram0`)를 구성하여 모든 스왑 작업을 메모리 대역폭(수십 GB/s) 수준의 초고속으로 처리합니다.
 
-### 2. 8GB zstd 고압축 스왑 (`systemd-zram-generator`)
-* **할당 크기**: `zram-size = 8192` (16GB RAM의 약 50%인 8GB 할당)
-* **압축 알고리즘**: `zstd` (lzo/lz4 대비 압축률이 뛰어나며, 메테오레이크 14코어 환경에서 CPU 오버헤드 없이 초저지연 동작)
-* **실질 효과**: 2~3배의 실시간 압축률을 통해 실제 2.5~3.5GB 수준의 물리 메모리 점유만으로 최대 8GB에 달하는 메모리 여유 공간을 확보합니다.
+### 2. 16GB zstd 고압축 스왑 (`systemd-zram-generator`)
+* **할당 크기**: `zram-size = 16384` (16GB RAM의 100% 매핑, 16,384MiB)
+* **동적 메모리 점유**: 고정 크기 할당이 아닌 실제 압축된 데이터 페이로드만큼만 RAM을 점유합니다.
+* **압축 알고리즘**: `zstd` (lzo/lz4 대비 뛰어난 압축률과 메테오레이크 14코어 하드웨어의 초고속 실시간 압축/해제)
+* **실질 효과**: 평균 2.5~3배의 압축률을 통해 16GB 물리 RAM 위에서 최대 **32~48GB 상당의 방대한 가상 메모리 공간**을 버벅임 없이 수용합니다.
 
 ### 3. 스왑 우선순위(Priority 100) 계층화
 * **`/dev/zram0` (우선순위 100)**: 디스크 스왑보다 높은 우선순위로 모든 스왑 I/O를 최우선 흡수.
-* **`/swap.img` (우선순위 -1)**: zram 8GB가 100% 모두 소진되는 극한 상황에서만 동작하는 최후의 안전 백업(후방 지원)으로 유지.
+* **`/swap.img` (우선순위 -1)**: 16GB zram이 100% 모두 소진되는 극한 상황에서만 동작하는 최후의 안전 백업(후방 지원)으로 유지.
 
-### 4. 커널 swappiness 최적화 (`vm.swappiness = 100`)
-* **목적**: `/etc/sysctl.d/99-vm-zram.conf`에 `vm.swappiness = 100` 지정 (기본값 60).
-* **효과**: 디스크 I/O가 없는 초고속 RAM 압축 특성을 활용하여 유휴 익명 페이지를 적극적으로 zram에 압축 보관하고, 물리 메모리의 파일 시스템 캐시를 풍부하게 유지하여 시스템 반응성 및 멀티태스킹 체감 성능 극대화.
+### 4. zram 특화 커널 가상 메모리 파라미터 최적화 (`/etc/sysctl.d/99-zram.conf`)
+* **`vm.swappiness = 150`**: 디스크 I/O 병목이 없는 zram의 초고속 RAM 압축 특성을 활용하여 유휴 익명 페이지를 적극 스왑아웃하고, 물리 RAM의 파일 시스템 캐시를 풍부하게 보존하여 앱 반응성 극대화.
+* **`vm.page-cluster = 0`**: 디스크 순차 읽기용 클러스터링(기본 8페이지/32KB)을 해제하고 단일 페이지(4KB) 단위 즉시 I/O를 수행하여 읽기 증폭과 불필요한 압축 해제 오버헤드 원천 제거.
+* **`vm.watermark_boost_factor = 0`**: 일시적인 메모리 할당 스파이크 시 kswapd의 과잉 메모리 회수 버그를 차단하여 지연 시간 스파이크 방지.
+* **`vm.watermark_scale_factor = 125`**: 메모리 여유 공간 워터마크 버퍼를 시스템 램의 1.25%로 완만하게 확보하여 다이렉트 리클레임 없는 부드러운 백그라운드 메모리 압축 회수 유도.
 
 ---
 
@@ -434,7 +437,7 @@ GB4P_ubuntu_my_preferences/
 │   ├── sysctl/
 │   │   ├── 99-nmi-watchdog.conf   # NMI Watchdog 인터럽트 절전 파라미터
 │   │   ├── 99-ssd-power-saving.conf  # SSD 깨움 지연 커널 파라미터
-│   │   └── 99-vm-zram.conf        # zram 스왑 압축 활용 극대화 (swappiness=100)
+│   │   └── 99-zram.conf           # zram 커널 파라미터 최적화 (swappiness=150, page-cluster=0 등)
 │   ├── systemd/
 │   │   └── powertop.service       # PowerTOP auto-tune systemd 서비스 유닛
 │   ├── udev/
@@ -472,7 +475,7 @@ GB4P_ubuntu_my_preferences/
 │   ├── pam/
 │   │   └── fprintd                   # PAM 지문인식 3회/30초 프로필 템플릿
 │   ├── zram/
-│   │   └── zram-generator.conf       # 8GB zstd 스왑 및 우선순위 100 설정
+│   │   └── zram-generator.conf       # 16GB zstd 스왑 및 우선순위 100 설정
 │   └── touchpad-edge-motion/
 │       ├── edge_motion.py            # 탭 앤 드래그 엣지 모션 데몬 소스
 │       └── touchpad-edge-motion.service # systemd 서비스 유닛 파일

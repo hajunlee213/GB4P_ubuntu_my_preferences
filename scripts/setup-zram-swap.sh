@@ -34,7 +34,7 @@ if [ ! -f "${ZRAM_SRC}" ]; then
     exit 1
 fi
 
-echo "-> /etc/systemd/zram-generator.conf 설정 파일 복사 (8GB, zstd, prio=100)..."
+echo "-> /etc/systemd/zram-generator.conf 설정 파일 복사 (16GB, zstd, prio=100)..."
 cp "${ZRAM_SRC}" "${ZRAM_DEST}"
 chmod 644 "${ZRAM_DEST}"
 
@@ -56,16 +56,24 @@ if ! swapon --show | grep -q "/dev/zram0"; then
     swapon /dev/zram0 2>/dev/null || true
 fi
 
-# 4. sysctl vm.swappiness = 100 적용 (zram 메모리 압축 활용 극대화)
-SYSCTL_SRC="${PROJECT_ROOT}/configs/sysctl/99-vm-zram.conf"
-SYSCTL_DEST="/etc/sysctl.d/99-vm-zram.conf"
+# 4. zram 커널 파라미터 최적화 적용 (swappiness=150, page-cluster=0, watermark)
+# 이전 구버전 설정 파일이 있다면 정리
+rm -f /etc/sysctl.d/99-vm-zram.conf
+
+SYSCTL_SRC="${PROJECT_ROOT}/configs/sysctl/99-zram.conf"
+SYSCTL_DEST="/etc/sysctl.d/99-zram.conf"
 
 if [ -f "${SYSCTL_SRC}" ]; then
-    echo "-> /etc/sysctl.d/99-vm-zram.conf 복사 및 vm.swappiness=100 적용..."
+    echo "-> /etc/sysctl.d/99-zram.conf 복사 및 커널 파라미터 적용..."
     mkdir -p /etc/sysctl.d
     cp "${SYSCTL_SRC}" "${SYSCTL_DEST}"
     chmod 644 "${SYSCTL_DEST}"
-    sysctl -p "${SYSCTL_DEST}" >/dev/null 2>&1 || sysctl -w vm.swappiness=100 >/dev/null
+    sysctl -p "${SYSCTL_DEST}" >/dev/null 2>&1 || {
+        sysctl -w vm.swappiness=150 >/dev/null
+        sysctl -w vm.page-cluster=0 >/dev/null
+        sysctl -w vm.watermark_boost_factor=0 >/dev/null
+        sysctl -w vm.watermark_scale_factor=125 >/dev/null
+    }
 fi
 
 echo ""
@@ -75,7 +83,7 @@ echo ""
 echo "[+] 전체 스왑 우선순위 상태:"
 swapon --show || true
 echo ""
-echo "[+] 커널 swappiness 설정:"
-sysctl vm.swappiness
+echo "[+] 커널 zram 파라미터 설정:"
+sysctl vm.swappiness vm.page-cluster vm.watermark_boost_factor vm.watermark_scale_factor
 echo ""
-echo "[SUCCESS] zram 압축 스왑 및 swappiness 최적화 설정이 성공적으로 완료되었습니다."
+echo "[SUCCESS] zram 압축 스왑 및 커널 파라미터 최적화 설정이 성공적으로 완료되었습니다."
