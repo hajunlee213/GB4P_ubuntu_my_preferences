@@ -1,6 +1,6 @@
 # driver_power_patch.sh 설명 문서
 
-이 문서는 **[`driver_power_patch.sh`](./driver_power_patch.sh)** 스크립트가 적용하는 인텔 메테오레이크 `i915` 드라이버 안정화(Early KMS), 인텔 마이크로코드/써멀 제어, GPU 연산 가속(OpenCL), PCIe ASPM 초절전 정책, 그리고 PowerTOP 자동 튜닝 서비스의 동작 원리와 복원/롤백 방법을 상세히 설명합니다.
+이 문서는 **[`driver_power_patch.sh`](./driver_power_patch.sh)** 스크립트가 적용하는 인텔 메테오레이크 `i915` 드라이버 안정화(Early KMS), 인텔 마이크로코드/써멀 제어, GPU 연산 가속(OpenCL), PCIe ASPM 초절전 정책, PowerTOP 자동 튜닝 서비스, 그리고 백그라운드 시스템 데몬 타이머 슬랙(`system.slice TimerSlackNSec=50ms`) 병합의 동작 원리와 복원/롤백 방법을 상세히 설명합니다.
 
 ---
 
@@ -34,6 +34,10 @@
 * `powertop.service`: 부팅 시 모든 PCI/USB 디바이스의 Runtime PM을 `auto`(자동 절전)로 전환
 * `kernel.nmi_watchdog = 0`: 1초 주기 하드웨어 인터럽트를 제거하여 CPU 코어 슬립 지속 시간 극대화
 
+### (5) system.slice 백그라운드 타이머 슬랙 50ms 격리 병합 (`TimerSlackNSec=50ms`)
+* 데스크톱 세션(`user.slice`)은 기본값(50µs)을 유지하여 120Hz 렌더링 및 PipeWire 저지연 오디오 반응성을 100% 보존.
+* 시스템 백그라운드 데몬(`system.slice`)에만 50ms 타이머 슬랙을 부여하여 잘게 쪼개진 wake-up 이벤트를 한 번에 병합 처리함으로써 E-코어의 불필요한 기상을 억제하고 CPU Package C10 체류 시간을 극대화.
+
 ---
 
 ## 2. 적용되는 설정 및 시스템 경로
@@ -46,6 +50,7 @@
 | `/etc/dracut.conf.d/i915.conf` | Early KMS 램디스크에 `i915` 모듈 사전 탑재 강제 | [`configs/dracut/i915.conf`](./configs/dracut/i915.conf) |
 | `/etc/systemd/system/powertop.service` | 부팅 시 모든 버스 장치 Runtime PM 자동 튜닝 실행 서비스 | [`configs/systemd/powertop.service`](./configs/systemd/powertop.service) |
 | `/etc/sysctl.d/99-nmi-watchdog.conf` | CPU 유휴 수면 방해 인터럽트 차단 (`kernel.nmi_watchdog = 0`) | [`configs/sysctl/99-nmi-watchdog.conf`](./configs/sysctl/99-nmi-watchdog.conf) |
+| `/etc/systemd/system/system.slice.d/50-timer-slack.conf` | 시스템 백그라운드 데몬 타이머 슬랙 50ms 병합 (`TimerSlackNSec=50ms`) | [`configs/systemd/system.slice.d/50-timer-slack.conf`](./configs/systemd/system.slice.d/50-timer-slack.conf) |
 
 ### 설치되는 시스템 패키지 목록
 1. `intel-microcode`: 메테오레이크 CPU 마이크로코드 펌웨어 최신 패치
@@ -77,6 +82,14 @@
 
 ### (4) NMI Watchdog 비활성화 (`kernel.nmi_watchdog = 0`)
 * 매초 발생하는 하드웨어 감시 인터럽트를 비활성화하여 유휴 코어가 강제로 깨어나는 것을 방지하고 딥 슬립 상태를 지속시킵니다.
+
+### (5) system.slice 백그라운드 타이머 슬랙 50ms 격리 (`TimerSlackNSec=50ms`)
+* **설정 파일**: `/etc/systemd/system/system.slice.d/50-timer-slack.conf`
+* **동작 원리**:
+  * 리눅스 커널의 타이머 슬랙(`prctl(PR_SET_TIMERSLACK)`) 메커니즘을 systemd `system.slice` 전역에 적용합니다.
+  * 백그라운드 서비스(systemd 단위의 시스템 데몬들)가 요청하는 타이머 만료 시점을 최대 50ms 범위 내에서 하나의 시간대로 묶어서(Coalescing) 일괄 기동합니다.
+  * 사용자 데스크톱 세션(`user.slice`)은 기본값(50µs)을 유지하므로 마우스, 터치패드 제스처, 120Hz 화면 렌더링, PipeWire 오디오 레이턴시에는 일절 영향(0% 지연)을 주지 않습니다.
+  * 시스템 데몬들의 비동기 wake-up 주기가 정렬되어 E-코어의 잦은 C-state 이탈을 차단하고, Package C10 체류 시간을 대폭 늘립니다.
 
 ---
 
@@ -126,6 +139,12 @@
    # 출력 결과: 0
    ```
 
+6. **system.slice 타이머 슬랙(50ms) 확인**:
+   ```bash
+   systemctl show system.slice -p TimerSlackNSec
+   # 출력 결과: TimerSlackNSec=50ms
+   ```
+
 ---
 
 ### (2) 원클릭 롤백 (순정 출고 상태 복구)
@@ -142,3 +161,4 @@ sudo ./driver_power_patch.sh --restore
 3. `powertop.service` 중지, 비활성화 및 `/etc/systemd/system/powertop.service` 파일 삭제
 4. `/etc/sysctl.d/99-nmi-watchdog.conf` 삭제 및 `kernel.nmi_watchdog = 1` 기본값 복구
 5. 런타임 PCIe ASPM 정책을 `default`로 복원
+6. `/etc/systemd/system/system.slice.d/50-timer-slack.conf` 삭제 및 `systemctl daemon-reload`로 system.slice 기본값(50µs) 복원

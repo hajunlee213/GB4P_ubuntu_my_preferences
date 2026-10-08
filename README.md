@@ -46,7 +46,7 @@ chmod +x *.sh scripts/*.sh
 ```bash
 ./driver_power_patch.sh
 ```
-> 검증된 인텔 i915 그래픽 드라이버 안정화(Early KMS), 마이크로코드/thermald, GPU 연산 가속(OpenCL), PCIe ASPM 초절전(`powersupersave`), PowerTOP 자동 튜닝 서비스를 복원합니다. (순정 복구: `sudo ./driver_power_patch.sh --restore`)
+> 검증된 인텔 i915 그래픽 드라이버 안정화(Early KMS), 마이크로코드/thermald, GPU 연산 가속(OpenCL), PCIe ASPM 초절전(`powersupersave`), PowerTOP 자동 튜닝 서비스, 백그라운드 타이머 슬랙(`system.slice TimerSlackNSec=50ms`)을 복원합니다. (순정 복구: `sudo ./driver_power_patch.sh --restore`)
 
 ### 7. 웹캠 드라이버 & On-Demand Relay 복원 (`webcam_setup.sh`)
 ```bash
@@ -320,6 +320,10 @@ OLED 패널에서 다크모드 사용 시 발생하는 극단적인 명암비(�
 * **설정 파일**: `/etc/sysctl.d/99-nmi-watchdog.conf`
 * **효과**: 1초마다 유휴 코어를 강제로 깨우는 커널 NMI 감시견 타이머를 비활성화하여 코어의 딥 슬립 상태 지속 시간 극대화
 
+### 7. 백그라운드 타이머 슬랙 50ms 격리 (`TimerSlackNSec=50ms`)
+* **설정 파일**: `/etc/systemd/system/system.slice.d/50-timer-slack.conf`
+* **효과**: UI/오디오 반응성(`user.slice`, 기본 50µs)을 보존한 채, 시스템 백그라운드 데몬(`system.slice`)의 타이머 만료 주기를 50ms로 병합하여 E-코어의 불필요한 기상을 억제하고 CPU `Package C10` 체류 시간을 극대화
+
 ---
 
 ## webcam_setup (웹캠 드라이버 & On-Demand Relay 상세)
@@ -439,7 +443,9 @@ GB4P_ubuntu_my_preferences/
 │   │   ├── 99-ssd-power-saving.conf  # SSD 깨움 지연 커널 파라미터
 │   │   └── 99-zram.conf           # zram 커널 파라미터 최적화 (swappiness=150, page-cluster=0 등)
 │   ├── systemd/
-│   │   └── powertop.service       # PowerTOP auto-tune systemd 서비스 유닛
+│   │   ├── powertop.service       # PowerTOP auto-tune systemd 서비스 유닛
+│   │   └── system.slice.d/
+│   │       └── 50-timer-slack.conf # 시스템 백그라운드 데몬 타이머 슬랙 50ms 병합 설정
 │   ├── udev/
 │   │   └── 99-power-profile-switch.rules # AC/DC 자동 전환 감지 udev 룰
 │   ├── sudoers/

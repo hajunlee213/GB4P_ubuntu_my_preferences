@@ -8,7 +8,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-echo "=== [1/5] 필수 패키지 및 인텔 펌웨어 설치 ==="
+echo "=== [1/6] 필수 패키지 및 인텔 펌웨어 설치 ==="
 
 if [ "$EUID" -ne 0 ]; then
     echo "[ERROR] 이 스크립트는 root 권한(sudo)으로 실행해야 합니다." >&2
@@ -38,11 +38,11 @@ systemctl enable --now thermald
 echo "[+] thermald 서비스 활성화 완료."
 echo ""
 
-echo "=== [2/5] i915 Early KMS 부팅 레이스 컨디션 해결 스크립트 실행 ==="
+echo "=== [2/6] i915 Early KMS 부팅 레이스 컨디션 해결 스크립트 실행 ==="
 bash "${SCRIPT_DIR}/fix-i915-race-condition.sh"
 echo ""
 
-echo "=== [3/5] GRUB 부트로더 커널 파라미터 최적화 ==="
+echo "=== [3/6] GRUB 부트로더 커널 파라미터 최적화 ==="
 GRUB_DEFAULT_FILE="/etc/default/grub"
 
 if [ -f "$GRUB_DEFAULT_FILE" ]; then
@@ -97,7 +97,7 @@ else
 fi
 echo ""
 
-echo "=== [4/5] PowerTOP Auto-Tune 서비스 등록 ==="
+echo "=== [4/6] PowerTOP Auto-Tune 서비스 등록 ==="
 POWERTOP_SERVICE_SRC="${PROJECT_ROOT}/configs/systemd/powertop.service"
 POWERTOP_SERVICE_DEST="/etc/systemd/system/powertop.service"
 
@@ -115,7 +115,7 @@ if [ -f "$POWERTOP_SERVICE_SRC" ]; then
 fi
 echo ""
 
-echo "=== [5/5] 커널 타이머 인터럽트 절전 (NMI Watchdog) & ASPM 즉시 반영 ==="
+echo "=== [5/6] 커널 타이머 인터럽트 절전 (NMI Watchdog) & ASPM 즉시 반영 ==="
 SYSCTL_SRC="${PROJECT_ROOT}/configs/sysctl/99-nmi-watchdog.conf"
 SYSCTL_DEST="/etc/sysctl.d/99-nmi-watchdog.conf"
 
@@ -133,6 +133,21 @@ if [ -w /sys/module/pcie_aspm/parameters/policy ]; then
     echo "-> 런타임 PCIe ASPM 정책 즉시 적용 (powersupersave)..."
     echo powersupersave > /sys/module/pcie_aspm/parameters/policy || true
     echo "[+] 현재 ASPM 정책: $(cat /sys/module/pcie_aspm/parameters/policy 2>/dev/null || echo 'N/A')"
+fi
+echo ""
+
+echo "=== [6/6] system.slice 백그라운드 타이머 슬랙 50ms 병합 설정 ==="
+TIMER_SLACK_SRC="${PROJECT_ROOT}/configs/systemd/system.slice.d/50-timer-slack.conf"
+TIMER_SLACK_DEST_DIR="/etc/systemd/system/system.slice.d"
+TIMER_SLACK_DEST="${TIMER_SLACK_DEST_DIR}/50-timer-slack.conf"
+
+if [ -f "$TIMER_SLACK_SRC" ]; then
+    echo "-> system.slice TimerSlackNSec=50ms 설정 복사..."
+    mkdir -p "$TIMER_SLACK_DEST_DIR"
+    cp "$TIMER_SLACK_SRC" "$TIMER_SLACK_DEST"
+    chmod 644 "$TIMER_SLACK_DEST"
+    systemctl daemon-reload
+    echo "[+] system.slice 백그라운드 데몬 타이머 50ms 병합 적용 완료 (C10 체류 시간 증가)."
 fi
 echo ""
 

@@ -112,6 +112,16 @@ if [ -w /sys/module/pcie_aspm/parameters/policy ]; then
 fi
 echo ""
 
+# 7. system.slice 백그라운드 타이머 슬랙 설정 원복
+echo "-> system.slice TimerSlackNSec 설정 원복..."
+if [ -f /etc/systemd/system/system.slice.d/50-timer-slack.conf ]; then
+    rm -f /etc/systemd/system/system.slice.d/50-timer-slack.conf
+    rmdir /etc/systemd/system/system.slice.d 2>/dev/null || true
+    systemctl daemon-reload
+    echo "[+] 삭제 완료: /etc/systemd/system/system.slice.d/50-timer-slack.conf"
+fi
+echo ""
+
 echo "======================================================================"
 echo " [SUCCESS] 드라이버 및 전력 최적화 순정 롤백이 완료되었습니다!"
 echo " 재부팅 시 기본 설정으로 동작합니다:"
