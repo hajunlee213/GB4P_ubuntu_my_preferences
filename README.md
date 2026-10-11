@@ -72,19 +72,21 @@ sudo ./zram_swap.sh
 
 인텔 메테오레이크(Meteor Lake Core Ultra 5 125H 등)의 높은 유휴/부하 전력 소모와 피크 발열(90°C+ 쓰로틀링)을 해결하기 위해 최적화된 설정들입니다.
 
-### 1. CPU 하이브리드 아키텍처 토폴로지 최적화 (E-코어 8개 전담 + CPU 0 식물인간 격리)
+### 1. CPU 하이브리드 아키텍처 토폴로지 최적화 (E-코어 8개 전담 + CPU 0 LPE 전담 @ 1.2GHz)
 * **P-core (CPU 1~7) 완전 차단**:
   * P코어 물리 코어 및 하이퍼스레딩(CPU 1, 2, 3, 4, 5, 6, 7)을 하드웨어적으로 오프라인
-* **CPU 0 식물인간 격리 (x86 BSP 제약 극복 & C10 딥슬립 유지)**:
+* **CPU 0 LPE 에뮬레이션 전담 (1.2GHz 베이스 클럭 락 & 시스템/오디오/IRQ 전담)**:
   * x86 아키텍처의 Bootstrap Processor(BSP) 특성상 CPU 0은 커널 하드웨어 차원(`cpu0/online`)에서 오프라인을 지원하지 않음
-  * systemd cgroups v2의 `systemctl set-property user.slice AllowedCPUs=8-15` 및 `user-1000.slice AllowedCPUs=8-15`를 통해 사용자 세션의 모든 프로세스(GNOME 셸, 렌더러, 브라우저 스레드 등)의 실행 가능 CPU를 E-코어(8-15)로 완전 한정
-  * CPU 0은 최소한의 커널 타이머/인터럽트만 처리하며 99.5% 이상 하드웨어 C10 딥슬립 상태에 머무름
-* **E-core 8개 전체 가동 (Cluster 0 & Cluster 1, CPU 8~15 ON)**:
-  * 브라우저 및 일상적인 모든 작업을 E-코어 8개가 전담 처리
-  * P-코어의 거대한 OOOE(비순차적 실행) 구조와 국소 핫스팟이 원천 배제되어 발열이 다이 전체에 고르게 분산되고 42°C대 무소음(팬 0 RPM 정지) 유지
-* **LP-E Core (CPU 16, 17) 차단 (Compute 타일 단일화 & 크로스 타일 오버헤드 차단)**:
-  * 리눅스 환경에서 LP-E는 작업 배분을 거의 못 받으면서(99% 이상 C10 유휴), 다른 코어들의 메모리 변경에 따른 TLB shootdown과 IPI 신호로 헛바퀴만 도는 문제 차단
-  * SoC 타일과 Compute 타일 간 패브릭 인터커넥트 통신 비용 및 캐시 스눕 전력 낭비를 완전히 제거하고, 모든 활성 코어(8E)를 18MB L3를 공유하는 **Compute 타일 내부로 단일화**
+  * CPU 0에 터보 부스트를 차단하고 1.2GHz 베이스 클럭 상한(`scaling_max_freq=1200000`, EPP `power`)을 강제하여 P-Core 특유의 고전압 국소 열점(Hotspot) 원천 차단 (-1.5°C 하강)
+  * cgroups v2로 `system.slice AllowedCPUs=0` 및 `init.scope AllowedCPUs=0`을 지정하여 모든 OS 시스템 데몬을 CPU 0에 배정
+  * 하드웨어 IRQ(AudioDSP IRQ 200, Wi-Fi IRQ 184~199) 및 실시간 오디오 데몬(PipeWire, WirePlumber)을 CPU 0으로 직결(`taskset -cp 0`)
+  * 단일 스레드 파이프라인의 고속 연산력으로 백그라운드 짤짤이를 수 μs 만에 처리하고 즉시 C10 딥슬립으로 복귀하여 **C10 체류율 63.2% 달성 (2배 이상 증가) 및 RAPL 패키지 전력 -5.7%(-0.36W), 코어 전력 -9.7%(-0.25W) 절감**
+* **E-core 8개 전체 가동 (Cluster 0 & Cluster 1, CPU 8~15 ON, 사용자 세션 전담)**:
+  * `systemctl set-property user.slice AllowedCPUs=8-15`로 브라우저, GUI 렌더러, 모든 사용자 프로그램을 E-코어 8개가 전담 처리
+  * 잡다한 시스템 인터럽트와 백그라운드 짐을 CPU 0으로 덜어내어 16%대 균일 C0 활성율로 극저발열/무소음(팬 0 RPM 정지) 유지
+* **LP-E Core (CPU 16, 17) 차단 (Compute 타일 단일화 & 패브릭 인터커넥트 동결)**:
+  * SoC 타일과 Compute 타일 간 Foveros 인터커넥트 트래픽 및 L3 부재로 인한 메모리 버스 경유 전력 손실(+0.17W Pkg, +1.2°C 발열) 차단
+  * 모든 활성 코어를 18MB L3를 공유하는 **Compute 타일 내부로 단일화**하여 IPC 통신 오버헤드 0 달성
 * **복원 경로**: `~/.local/bin/disable-ht.sh`, `~/.config/autostart/disable-ht.desktop`
 
 ### 2. SSD I/O 깨움 주기 지연 (VM Dirty Writeback 최적화)

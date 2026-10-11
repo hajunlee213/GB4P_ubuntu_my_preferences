@@ -14,12 +14,31 @@ if [ "$EUID" -ne 0 ]; then
     exec sudo "$0" "$@"
 fi
 
-echo "[1/4] 모든 CPU 코어 온라인 활성화 및 프로세스 격리 해제 중..."
+echo "[1/4] 모든 CPU 코어 온라인 활성화, 클럭 캡 해제 및 프로세스 격리 해제 중..."
 for f in /sys/devices/system/cpu/cpu*/online; do
     [ -f "$f" ] && echo 1 > "$f" 2>/dev/null
 done
+
+# 모든 CPU 클럭 상한선 최대치 복원
+for f in /sys/devices/system/cpu/cpu*/cpufreq; do
+    [ -f "$f/cpuinfo_max_freq" ] && cat "$f/cpuinfo_max_freq" > "$f/scaling_max_freq" 2>/dev/null || true
+done
+
+# cgroups v2 모든 슬라이스 격리 해제
 systemctl set-property user.slice AllowedCPUs= 2>/dev/null || true
 systemctl set-property user-1000.slice AllowedCPUs= 2>/dev/null || true
+systemctl set-property system.slice AllowedCPUs= 2>/dev/null || true
+systemctl set-property init.scope AllowedCPUs= 2>/dev/null || true
+
+# 오디오 데몬 및 IRQ 친화도 기본값(전코어) 복원
+for proc in pipewire wireplumber pipewire-pulse; do
+    for pid in $(pgrep -f "$proc" 2>/dev/null); do
+        taskset -cp 0-15 "$pid" 2>/dev/null || true
+    done
+done
+for irq in $(grep -Ei "iwlwifi|snd|sof|audio" /proc/interrupts 2>/dev/null | awk '{print $1}' | tr -d ':'); do
+    [ -f "/proc/irq/$irq/smp_affinity_list" ] && echo 0-15 > "/proc/irq/$irq/smp_affinity_list" 2>/dev/null || true
+done
 
 echo "[2/4] 터보 부스트 ON 및 클럭 제한 80% 설정 중..."
 echo 0 > /sys/devices/system/cpu/intel_pstate/no_turbo

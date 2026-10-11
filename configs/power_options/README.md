@@ -50,12 +50,13 @@
 
 ### 1) AC / DC 자동 전환 규칙 (`udev`)
 * **설정 파일**: `/etc/udev/rules.d/99-power-profile-switch.rules`
-* **CPU 토폴로지**: **E-코어 8개 전담 체제 (CPU 1~7 OFF, CPU 0 식물인간 C10 격리, LP-E 16~17 OFF)**
-  * `systemctl set-property user.slice AllowedCPUs=8-15` 및 `user-1000.slice AllowedCPUs=8-15`로 모든 사용자 프로세스를 E-코어 8개로 완전 한정
-  * CPU 0은 x86 BSP 커널 제약으로 상주하되 부하가 0%로 유지되어 하드웨어 C10 딥슬립 지속
+* **CPU 토폴로지**: **E-코어 8개 전담 + CPU 0번 LPE 전담 체제 (CPU 1~7 OFF, CPU 16~17 OFF)**
+  * `systemctl set-property system.slice AllowedCPUs=0` 및 `init.scope AllowedCPUs=0`으로 시스템 데몬을 CPU 0에 배정
+  * `systemctl set-property user.slice AllowedCPUs=8-15`로 모든 사용자 프로세스를 E-코어 8개로 완전 한정
+  * CPU 0은 1.2GHz 베이스 클럭 락(`scaling_max_freq=1200000`, EPP `power`) 상태로 AudioDSP/Wi-Fi IRQ 및 PipeWire 오디오 데몬을 전담 처리하며 C10 딥슬립(63.2%) 지속
 * **동작 규칙**:
-  * **🔌 AC (충전기 연결 시)**: Gnome `Power Saver` + 터보 ON / 80% 제한 (E-코어 ~3.0GHz * 8개 = 24 GHz·core) + EPP `power` (P코어 발열 원천 차단, 최대 ~3.0GHz 성능 제공 및 팬 소음 억제/무소음 유지)
-  * **🔋 DC (배터리 사용 시)**: Gnome `Power Saver` + 터보 ON / 70% 제한 (E-코어 ~2.5GHz * 8개 = 20 GHz·core) + EPP `power` (P코어 발열 원천 차단, 전성비 최적 구간 ~2.5GHz, 쾌적한 반응성과 팬 소음 억제/무소음 유지)
+  * **🔌 AC (충전기 연결 시)**: Gnome `Power Saver` + 터보 ON / 80% 제한 (E-코어 ~3.0GHz * 8개 = 24 GHz·core) + CPU 0 LPE(1.2GHz) + EPP `power` (P코어 발열 원천 차단, 최대 ~3.0GHz 성능 제공 및 팬 소음 억제/무소음 유지)
+  * **🔋 DC (배터리 사용 시)**: Gnome `Power Saver` + 터보 ON / 70% 제한 (E-코어 ~2.5GHz * 8개 = 20 GHz·core) + CPU 0 LPE(1.2GHz) + EPP `power` (P코어 발열 원천 차단, 전성비 최적 구간 ~2.5GHz, 쾌적한 반응성과 팬 소음 억제/무소음 유지)
 * **영구 유지**: 재부팅 후에도 영구적으로 자동 동작합니다.
 
 ### 2) 부팅 시 자동 실행 (`autostart`)

@@ -40,11 +40,11 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 3. 코어 토폴로지 유지 (E-코어 8개 전용 체제 + P코어 0번 식물인간 격리)
+# 3. 코어 토폴로지 유지 (E-코어 8개 전담 + CPU 0번 LPE 백그라운드/오디오/IRQ 전담)
 # - P코어 (CPU 1~7): 완전 OFF (하드웨어 오프라인)
-# - CPU 0: x86 BSP 커널 제약으로 하드웨어 상주하되, cgroups v2로 작업 할당 차단 -> C10 딥슬립 유지
-# - E코어 Cluster 0 & 1 (CPU 8~15, 8개 E코어 전체): 항상 ON (저발열 멀티코어 전담)
-# - LP-E 코어 (CPU 16, 17, SoC 타일): 인터커넥트 오버헤드 차단을 위해 항상 OFF
+# - CPU 0: x86 BSP 커널 제약으로 하드웨어 상주하되, 1.2GHz 베이스 락으로 LPE 에뮬레이션
+# - E코어 Cluster 0 & 1 (CPU 8~15, 8개 E코어 전체): 항상 ON (사용자 세션 전담)
+# - LP-E 코어 (CPU 16, 17, SoC 타일): 패브릭 오버헤드 차단을 위해 항상 OFF
 # ------------------------------------------------------------------------------
 for c in 1 2 3 4 5 6 7; do
     echo 0 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null || true
@@ -56,9 +56,27 @@ for c in 16 17; do
     echo 0 > /sys/devices/system/cpu/cpu$c/online 2>/dev/null || true
 done
 
-# 사용자 세션 프로세스를 8개 E-코어(8-15)로 제한하여 CPU 0을 식물 상태(C10 슬립)로 유지
+# CPU 0 클럭 억제 (1.2GHz 베이스 클럭 락 & EPP power)
+echo 1200000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 2>/dev/null || true
+echo power > /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null || true
+
+# cgroups v2 슬라이스별 격리: 시스템 데몬 -> CPU 0, 사용자 세션 -> CPU 8-15
+systemctl set-property system.slice AllowedCPUs=0 2>/dev/null || true
+systemctl set-property init.scope AllowedCPUs=0 2>/dev/null || true
 systemctl set-property user.slice AllowedCPUs=8-15 2>/dev/null || true
 systemctl set-property user-1000.slice AllowedCPUs=8-15 2>/dev/null || true
+
+# 하드웨어 IRQ 라우팅 (AudioDSP & Wi-Fi iwlwifi -> CPU 0)
+for irq in $(grep -Ei "iwlwifi|snd|sof|audio" /proc/interrupts 2>/dev/null | awk '{print $1}' | tr -d ':'); do
+    [ -f "/proc/irq/$irq/smp_affinity_list" ] && echo 0 > "/proc/irq/$irq/smp_affinity_list" 2>/dev/null || true
+done
+
+# 사용자 세션 오디오 데몬 CPU 0 핀포인트 직결 (taskset -cp 0)
+for proc in pipewire wireplumber pipewire-pulse; do
+    for pid in $(pgrep -f "$proc" 2>/dev/null); do
+        taskset -cp 0 "$pid" 2>/dev/null || true
+    done
+done
 
 # ------------------------------------------------------------------------------
 # 4. AC / DC 모드별 정책 분기
@@ -75,6 +93,10 @@ if [ "$IS_AC" -eq 1 ]; then
     for f in /sys/devices/system/cpu/cpu*/cpufreq; do
         [ -f "$f/cpuinfo_max_freq" ] && cat "$f/cpuinfo_max_freq" > "$f/scaling_max_freq" 2>/dev/null || true
     done
+    # CPU 0 클럭 상한 1.2GHz 재강제 (전체 루프 해제 방지)
+    echo 1200000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 2>/dev/null || true
+    echo power > /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null || true
+
     echo 80 > /sys/devices/system/cpu/intel_pstate/max_perf_pct 2>/dev/null
     echo "low-power" > /sys/firmware/acpi/platform_profile 2>/dev/null
     powerprofilesctl set power-saver 2>/dev/null || true
@@ -86,12 +108,13 @@ if [ "$IS_AC" -eq 1 ]; then
         for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
             [ -f "$f" ] && echo "power" > "$f" 2>/dev/null || true
         done
+        echo 1200000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 2>/dev/null || true
     ) &
 
     TITLE="전원 연결 (AC 모드)"
-    BODY="Gnome: Power Saver (EPP: power) | E-코어 부스트 (80% / ~3.0GHz) 적용"
+    BODY="Gnome: Power Saver (EPP: power) | E-코어 부스트 (80% / ~3.0GHz) | CPU 0 LPE (1.2GHz)"
     ICON="battery-charging"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied AC Mode: Power Saver (E-cores 80% / ~3.0GHz, EPP: power)"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied AC Mode: Power Saver (E-cores 80% / ~3.0GHz, CPU 0 1.2GHz, EPP: power)"
 else
     # ==========================================
     # [DC 배터리 모드]
@@ -104,6 +127,10 @@ else
     for f in /sys/devices/system/cpu/cpu*/cpufreq; do
         [ -f "$f/cpuinfo_max_freq" ] && cat "$f/cpuinfo_max_freq" > "$f/scaling_max_freq" 2>/dev/null || true
     done
+    # CPU 0 클럭 상한 1.2GHz 재강제 (전체 루프 해제 방지)
+    echo 1200000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 2>/dev/null || true
+    echo power > /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null || true
+
     echo 70 > /sys/devices/system/cpu/intel_pstate/max_perf_pct 2>/dev/null
     echo "low-power" > /sys/firmware/acpi/platform_profile 2>/dev/null
     powerprofilesctl set power-saver 2>/dev/null || true
@@ -115,12 +142,13 @@ else
         for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
             [ -f "$f" ] && echo "power" > "$f" 2>/dev/null || true
         done
+        echo 1200000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 2>/dev/null || true
     ) &
 
     TITLE="배터리 사용 (DC 모드)"
-    BODY="Gnome: Power Saver (EPP: power) | E-코어 부스트 (70% / ~2.5GHz) 적용"
+    BODY="Gnome: Power Saver (EPP: power) | E-코어 부스트 (70% / ~2.5GHz) | CPU 0 LPE (1.2GHz)"
     ICON="battery-low"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied DC Mode: Power Saver (E-cores 70% / ~2.5GHz, EPP: power)"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied DC Mode: Power Saver (E-cores 70% / ~2.5GHz, CPU 0 1.2GHz, EPP: power)"
 fi
 
 # ------------------------------------------------------------------------------

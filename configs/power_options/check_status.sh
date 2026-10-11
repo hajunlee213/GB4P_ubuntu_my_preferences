@@ -11,6 +11,7 @@ NO_TURBO=$(cat /sys/devices/system/cpu/intel_pstate/no_turbo 2>/dev/null)
 MAX_PERF=$(cat /sys/devices/system/cpu/intel_pstate/max_perf_pct 2>/dev/null)
 PLATFORM_PROF=$(cat /sys/firmware/acpi/platform_profile 2>/dev/null)
 EPP=$(cat /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null)
+CPU0_MAX=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 2>/dev/null)
 
 if [ "$NO_TURBO" = "0" ]; then
     TURBO_STAT="ON (사용 중)"
@@ -19,14 +20,17 @@ else
 fi
 
 ONLINE_CORES=$(grep -c "^processor" /proc/cpuinfo 2>/dev/null)
-ALLOWED_CPUS=$(systemctl show user-1000.slice -p AllowedCPUs 2>/dev/null | cut -d= -f2)
+ALLOWED_USER=$(systemctl show user-1000.slice -p AllowedCPUs 2>/dev/null | cut -d= -f2)
+ALLOWED_SYS=$(systemctl show system.slice -p AllowedCPUs 2>/dev/null | cut -d= -f2)
 
 echo " * 활성 CPU 코어 : ${ONLINE_CORES}개 온라인"
-if [ "$ALLOWED_CPUS" = "8-15" ]; then
-    echo " * 코어 아키텍처 : E-코어 8개 전담 체제 (CPU 0 식물인간 C10 격리)"
+if [ "$ALLOWED_USER" = "8-15" ] && [ "$ALLOWED_SYS" = "0" ]; then
+    echo " * 코어 아키텍처 : E-코어 8개 전담 + CPU 0 LPE 전담 (1.2GHz 베이스 락)"
+    echo "   - system.slice / init.scope / IRQ / PipeWire -> CPU 0 (LPE)"
+    echo "   - user.slice (모든 사용자 앱/브라우저/셸)    -> CPU 8~15 (8E)"
 fi
 echo " * 터보 부스트   : $TURBO_STAT"
-echo " * 클럭 상한선   : ${MAX_PERF}%"
+echo " * 클럭 상한선   : ${MAX_PERF}% (CPU 0 제한: $((CPU0_MAX / 1000)) MHz)"
 echo " * 에너지 정책   : ${EPP} (EPP)"
 echo " * 삼성 팬모드   : ${PLATFORM_PROF}"
 echo "------------------------------------------"
@@ -41,7 +45,7 @@ echo " 6) custom_limit.sh           : 직접 수치 입력 (대화형)"
 echo "------------------------------------------"
 echo " [실시간 CPU 코어별 클럭 (MHz)]"
 awk '/processor/ {p=$3} /cpu MHz/ {
-    label = (p == 0 ? " (P-Core C10 격리)" : (p >= 8 && p <= 15 ? " (E-Core)" : ""))
+    label = (p == 0 ? " (P-Core LPE @ 1.2GHz)" : (p >= 8 && p <= 15 ? " (E-Core)" : ""))
     printf " CPU %2d : %6.1f MHz%s\n", p, $4, label
 }' /proc/cpuinfo
 echo "------------------------------------------"
