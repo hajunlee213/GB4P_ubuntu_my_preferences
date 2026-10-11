@@ -54,11 +54,11 @@ sudo ./webcam_setup.sh
 ```
 > 180도 뒤집힘 하드웨어 보정(ipu-bridge DKMS), 크롬/Chromium 인식(`exclusive_caps=1`), 부팅 레이스 컨디션 방지(IPU6 펌웨어 램디스크 번들링), 26MHz 클록 에러 해결, 생생한 색감 보정(채도 1.3) 및 On-Demand 초절전 백그라운드 Relay 서비스를 복원합니다. (순정 복구: `sudo ./webcam_setup.sh --restore`)
 
-### 8. 지문인식 센서 재부팅 수정 및 PAM 옵션 최적화 (`libfprint`, `pam_fprint_tuning.sh`)
+### 8. 지문인식 센서 드라이버(SDCP v2) & PAM 최적화 복원 (`fingerprint_setup.sh`)
 ```bash
-sudo ./pam_fprint_tuning.sh
+sudo ./fingerprint_setup.sh
 ```
-> 우분투 기본 1회 시도/10초 타임아웃 제한을 업스트림 표준인 **3회 시도/30초 타임아웃**(`max-tries=3 timeout=30`)으로 최적화합니다. 지문 센서 재부팅 인식 수정 패치는 `libfprint_egismoc_sdcp_reboot_fix.md` 문서를 참고하세요.
+> 갤럭시 북4 프로(Egis `1c7a:05a1`)에서 재부팅 시 등록 지문 유실, 화면 잠금/절전 복귀 시 센서 먹통(`65 E0`), 인증 취소 시 `fprintd` 데몬 크래시를 완벽 해결한 **SDCP Version 2 드라이버**와 **PAM 3회 시도/30초 타임아웃**을 원클릭으로 복원합니다. (순정 복구: `sudo ./fingerprint_setup.sh --restore`)
 
 ### 9. zram 압축 스왑 & SSD 수명 보호 복원 (`zram_swap.sh`)
 ```bash
@@ -409,12 +409,16 @@ GB4P_ubuntu_my_preferences/
 ├── driver_power_patch.sh_README.md # 드라이버 패치 & 전력 최적화 상세 설명서
 ├── webcam_setup.sh                # 웹캠 드라이버 & On-Demand Relay 복원 스크립트
 ├── webcam_setup.sh_README.md       # 웹캠 패치 및 릴레이 상세 설명서
+├── fingerprint_setup.sh           # 지문인식 센서(SDCP v2) & PAM 최적화 복원 스크립트
+├── fingerprint_setup.sh_README.md  # 지문인식 드라이버 & PAM 상세 설명서
 ├── pam_fprint_tuning.sh           # PAM 지문인식(3회/30초) 옵션 최적화 스크립트
 ├── pam_fprint_tuning.sh_README.md # PAM 지문인식 옵션 최적화 상세 설명서
 ├── zram_swap.sh                   # zram 압축 스왑 & SSD 수명 보호 복원 스크립트
 ├── zram_swap.sh_README.md          # zram 압축 스왑 패치 상세 설명서
-├── libfprint_egismoc_sdcp_reboot_fix.md    # 지문인식 센서(Egis) 재부팅 키 유지 패치 문서
-├── libfprint_egismoc_sdcp_reboot_fix.patch # 지문인식 센서 재부팅 시 등록 정보 보존 패치
+├── usable_SDCP_versions_README.md # Egis SDCP 버전별(v1/v2) 상세 변경 내역 문서
+├── libfprint_egismoc_sdcp_reboot_fix.md    # 지문인식 센서(Egis) SDCP v2 패치 문서
+├── libfprint_egismoc_full_fix.patch        # 지문인식 센서 v2 Full Fix 패치
+├── libfprint_egismoc_sdcp_reboot_fix.patch # 지문인식 센서 재부팅/크래시/재연결 v2 패치
 ├── configs/
 │   ├── webcam/
 │   │   ├── dracut/ipu6-firmware.conf      # IPU6 펌웨어 램디스크 번들링
@@ -482,12 +486,16 @@ GB4P_ubuntu_my_preferences/
 │   │   └── default.conf              # Alt_R/Ctrl_R -> 한영/한자 키 매핑
 │   ├── pam/
 │   │   └── fprintd                   # PAM 지문인식 3회/30초 프로필 템플릿
+│   ├── libfprint/
+│   │   └── libfprint-2.so.2.0.0      # SDCP v2 패치 빌드된 공유 라이브러리 바이너리
 │   ├── zram/
 │   │   └── zram-generator.conf       # 16GB zstd 스왑 및 우선순위 100 설정
 │   └── touchpad-edge-motion/
 │       ├── edge_motion.py            # 탭 앤 드래그 엣지 모션 데몬 소스
 │       └── touchpad-edge-motion.service # systemd 서비스 유닛 파일
 ├── scripts/
+│   ├── setup-libfprint.sh            # SDCP v2 패치 라이브러리 배포 및 서비스 복원
+│   ├── restore-libfprint.sh          # libfprint 드라이버 순정 롤백
 │   ├── setup-zram-swap.sh            # zram-generator 설정 및 압축 스왑 활성화
 │   ├── restore-zram-swap.sh          # zram 압축 스왑 순정 롤백
 │   ├── setup-pam-fprint.sh           # PAM fprintd 설정 및 pam-auth-update 갱신

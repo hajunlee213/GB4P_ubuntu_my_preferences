@@ -1,8 +1,22 @@
 diff --git a/libfprint/drivers/egismoc/egismoc.c b/libfprint/drivers/egismoc/egismoc.c
-index ab0a19a..3ce6244 100644
+index ab0a19a..2a1a36f 100644
 --- a/libfprint/drivers/egismoc/egismoc.c
 +++ b/libfprint/drivers/egismoc/egismoc.c
-@@ -1984,5 +1984,5 @@ fpi_device_egismoc_class_init (FpiDeviceEgisMocClass *klass)
+@@ -1940,6 +1940,13 @@ egismoc_close (FpDevice *device)
+   egismoc_cancel (device);
+   g_clear_object (&self->interrupt_cancellable);
+ 
++  if (self->task_ssm != NULL)
++    {
++      fp_warn ("task_ssm was not properly cleared, cleaning up now.");
++      fpi_ssm_free (self->task_ssm);
++      self->task_ssm = NULL;
++    }
++
+   g_usb_device_release_interface (fpi_device_get_usb_device (device),
+                                   0, 0, &error);
+   fpi_device_close_complete (device, error);
+@@ -1984,5 +1991,5 @@ fpi_device_egismoc_class_init (FpiDeviceEgisMocClass *klass)
  
    /* some but not all egismoc devices support reconnect; easiest to just disable for all */
    sdcp_dev_class->supports_reconnect = FALSE;
@@ -10,7 +24,7 @@ index ab0a19a..3ce6244 100644
 +  sdcp_dev_class->claim_expiration_seconds = -1;
  }
 diff --git a/libfprint/fpi-sdcp-device.c b/libfprint/fpi-sdcp-device.c
-index ff78377..61671e3 100644
+index ff78377..bc3ea7e 100644
 --- a/libfprint/fpi-sdcp-device.c
 +++ b/libfprint/fpi-sdcp-device.c
 @@ -771,9 +771,9 @@ fpi_sdcp_device_init_claim (FpiSdcpDevice *self)
@@ -26,16 +40,13 @@ index ff78377..61671e3 100644
      }
  
    priv->claim_connected_time = cached_connected_time;
-@@ -824,8 +824,10 @@ fpi_sdcp_device_init_claim (FpiSdcpDevice *self)
+@@ -824,8 +824,7 @@ fpi_sdcp_device_init_claim (FpiSdcpDevice *self)
      goto cache_init_failed;
    memcpy (priv->application_symmetric_key, app_symmetric_key, SDCP_APPLICATION_SYMMETRIC_KEY_SIZE);
  
 -  priv->is_connected = TRUE;
 -
-+  if (g_str_equal (cached_boot_id, sdcp_get_boot_id ()))
-+    priv->is_connected = TRUE;
-+  else
-+    priv->is_connected = FALSE;
++  priv->is_connected = FALSE;
    return TRUE;
  
  cache_init_failed:
