@@ -118,7 +118,7 @@ if [ "$IS_AC" -eq 1 ]; then
 else
     # ==========================================
     # [DC 배터리 모드]
-    # - CPU: E-코어 8개 부스트 가동 (터보 ON / 70% 제한 -> E코어 ~2.5GHz * 8개, 전성비 최적)
+    # - CPU: E-코어 8개 부스트 가동 (터보 ON / 60% 제한 -> E코어 ~2.0GHz * 8개, 전성비/저발열 극대화)
     # - 삼성 팬모드: Low-Power (무소음 / 팬 동작 억제)
     # - GNOME 전원: Power Saver
     # - EPP: power (하드웨어 최저 전력 선호도 강제)
@@ -131,7 +131,7 @@ else
     echo 1200000 > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 2>/dev/null || true
     echo power > /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference 2>/dev/null || true
 
-    echo 70 > /sys/devices/system/cpu/intel_pstate/max_perf_pct 2>/dev/null
+    echo 60 > /sys/devices/system/cpu/intel_pstate/max_perf_pct 2>/dev/null
     echo "low-power" > /sys/firmware/acpi/platform_profile 2>/dev/null
     powerprofilesctl set power-saver 2>/dev/null || true
     for f in /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference; do
@@ -146,9 +146,9 @@ else
     ) &
 
     TITLE="배터리 사용 (DC 모드)"
-    BODY="Gnome: Power Saver (EPP: power) | E-코어 부스트 (70% / ~2.5GHz) | CPU 0 LPE (1.2GHz)"
+    BODY="Gnome: Power Saver (EPP: power) | E-코어 부스트 (60% / ~2.0GHz) | CPU 0 LPE (1.2GHz)"
     ICON="battery-low"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied DC Mode: Power Saver (E-cores 70% / ~2.5GHz, CPU 0 1.2GHz, EPP: power)"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Applied DC Mode: Power Saver (E-cores 60% / ~2.0GHz, CPU 0 1.2GHz, EPP: power)"
 fi
 
 # ------------------------------------------------------------------------------

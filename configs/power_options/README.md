@@ -56,7 +56,7 @@
   * CPU 0은 1.2GHz 베이스 클럭 락(`scaling_max_freq=1200000`, EPP `power`) 상태로 AudioDSP/Wi-Fi IRQ 및 PipeWire 오디오 데몬을 전담 처리하며 C10 딥슬립(63.2%) 지속
 * **동작 규칙**:
   * **🔌 AC (충전기 연결 시)**: Gnome `Power Saver` + 터보 ON / 80% 제한 (E-코어 ~3.0GHz * 8개 = 24 GHz·core) + CPU 0 LPE(1.2GHz) + EPP `power` (P코어 발열 원천 차단, 최대 ~3.0GHz 성능 제공 및 팬 소음 억제/무소음 유지)
-  * **🔋 DC (배터리 사용 시)**: Gnome `Power Saver` + 터보 ON / 70% 제한 (E-코어 ~2.5GHz * 8개 = 20 GHz·core) + CPU 0 LPE(1.2GHz) + EPP `power` (P코어 발열 원천 차단, 전성비 최적 구간 ~2.5GHz, 쾌적한 반응성과 팬 소음 억제/무소음 유지)
+  * **🔋 DC (배터리 사용 시)**: Gnome `Power Saver` + 터보 ON / 60% 제한 (E-코어 ~2.0GHz * 8개 = 16.0 GHz·core) + CPU 0 LPE(1.2GHz) + EPP `power` (P코어 발열 원천 차단, 전성비/배터리 극대화 구간 ~2.0GHz, 쾌적한 반응성과 팬 소음 억제/무소음 유지)
 * **영구 유지**: 재부팅 후에도 영구적으로 자동 동작합니다.
 
 ### 2) 부팅 시 자동 실행 (`autostart`)
