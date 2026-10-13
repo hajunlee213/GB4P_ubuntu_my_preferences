@@ -79,7 +79,8 @@ rightcontrol = hanja
 - **주요 스펙**:
   - **속도 및 빈도**: 60Hz 갱신 빈도, 프레임당 2.5px (초당 150px) 이동으로 끊김 없이 부드러운 움직임 보장
   - **즉각 탈출 (Instant Escape)**: 손가락을 떼거나 안쪽으로 1px이라도 움직이면 1ms의 지체 없이 즉각 이동 중단
-  - **오작동 방지**: 팜 리젝션 영역에서 시작된 오터치 배제 및 엄격한 더블탭 드래그 구분
+  - **순수 이벤트 드리븐 (Zero CPU Polling)**: 유휴 상태에서는 주기적 타임아웃 없이 순수 이벤트 대기(`wait()`)로 동작하여 불필요한 스레드 깨어남/문맥 전환(Context Switch) 0회 유지
+  - **안전한 종료 (SIGTERM Handler)**: 서비스 중지 시 SIGTERM을 가로채 대기 스레드를 즉시 깨우고 join한 뒤 입력 장치를 안전하게 해제
 - **항시 실행 (systemd)**: `/etc/systemd/system/touchpad-edge-motion.service`로 등록되어 부팅 시부터 항시 백그라운드 구동
 
 ---

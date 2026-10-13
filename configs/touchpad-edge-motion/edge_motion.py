@@ -15,6 +15,7 @@ import struct
 import select
 import threading
 import argparse
+import signal
 
 # Linux Input Event Constants
 EV_SYN = 0x00
@@ -319,7 +320,7 @@ class EdgeMotionDaemon:
                 self.accum_x = 0.0
                 self.accum_y = 0.0
                 # Idle state: wait for a wakeup event instead of 60Hz polling
-                self.motion_wakeup.wait(timeout=1.0)
+                self.motion_wakeup.wait()
                 self.motion_wakeup.clear()
                 next_wakeup = time.time() + self.interval
 
@@ -395,17 +396,25 @@ class EdgeMotionDaemon:
         self.cur_x = new_x
         self.cur_y = new_y
 
+    def _handle_termination(self, signum, frame):
+        """Route SIGTERM through finally so the worker is woken and joined."""
+        self.running = False
+        self.motion_wakeup.set()
+        raise SystemExit(0)
+
     def run(self):
         self.running = True
-        self.motion_thread = threading.Thread(target=self._motion_loop, daemon=True)
-        self.motion_thread.start()
+        self.motion_thread = threading.Thread(target=self._motion_loop, daemon=False)
 
         all_fds = list(self.fds.keys())
         # To avoid constant single-event os.read overhead, read up to 64 events at once
         CHUNK_SIZE = EVENT_SIZE * 64
 
         print("[Info] Edge Motion Daemon started. Waiting for drag events...")
+        old_sigterm_handler = signal.getsignal(signal.SIGTERM)
         try:
+            signal.signal(signal.SIGTERM, self._handle_termination)
+            self.motion_thread.start()
             while self.running:
                 readable, _, _ = select.select(all_fds, [], [])
                 now = time.time()
@@ -417,9 +426,9 @@ class EdgeMotionDaemon:
                             if not data:
                                 break
                             
-                            self.motion_wakeup.set()
-
-                            # Parse all read events
+                            # Parse the complete read batch before waking the motion
+                            # worker. This avoids clearing a wakeup while its state
+                            # updates are still in progress.
                             for sec, usec, etype, ecode, evalue in struct.iter_unpack(EVENT_FORMAT, data):
 
                                 if etype == EV_KEY:
@@ -456,6 +465,8 @@ class EdgeMotionDaemon:
                                     elif ecode == ABS_MT_TRACKING_ID and evalue == -1:
                                         self._handle_touch_up(now)
 
+                            self.motion_wakeup.set()
+
                         except BlockingIOError:
                             break
 
@@ -464,8 +475,9 @@ class EdgeMotionDaemon:
         finally:
             self.running = False
             self.motion_wakeup.set()
-            if self.motion_thread:
-                self.motion_thread.join(timeout=1.0)
+            if self.motion_thread and self.motion_thread.ident is not None:
+                self.motion_thread.join()
+            signal.signal(signal.SIGTERM, old_sigterm_handler)
             self.uinput.close()
             for fd in self.fds.keys():
                 try:
